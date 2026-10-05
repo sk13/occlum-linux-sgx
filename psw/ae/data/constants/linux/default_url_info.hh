@@ -33,6 +33,5 @@
 #define DEFAULT_URL                 "http://ps.sgx.trustedservices.intel.com/" /*production backend server*/
 #define DEFAULT_PSE_RL_URL          "https://trustedservices.intel.com/content/CRL/"
 #define DEFAULT_PSE_OCSP_URL        "http://trustedservices.intel.com/ocsp"
-#define DEFAULT_WHITE_LIST_URL      "http://whitelist.trustedservices.intel.com/SGX/LCWL/Linux/sgx_white_list_cert.bin"
 #endif
 

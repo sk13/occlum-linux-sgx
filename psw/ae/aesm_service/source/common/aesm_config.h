@@ -36,7 +36,6 @@
 typedef struct _aesm_config_infos_t{
     uint32_t proxy_type;
     uint32_t quoting_type;
-    char white_list_url[MAX_PATH];
     char aesm_proxy[MAX_PATH];
     uint32_t qpl_log_level;
 }aesm_config_infos_t;

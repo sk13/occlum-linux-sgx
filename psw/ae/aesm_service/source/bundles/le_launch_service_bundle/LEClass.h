@@ -63,7 +63,6 @@ public:
         const uint8_t *white_list_cert,
         uint32_t white_list_cert_size,
         bool save_to_persistent_storage=true);
-    static ae_error_t update_white_list_by_url(void);
     bool is_ufd() { return m_ufd; }
 };
 #endif

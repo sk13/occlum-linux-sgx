@@ -79,7 +79,7 @@ ThreadStatus& WhiteListIOCache::get_thread()
 
 ae_error_t WhiteListIOCache::entry()
 {
-    return ae_ret = CLEClass::update_white_list_by_url();
+    return ae_ret = AE_SUCCESS;
 }
 
 
@@ -166,69 +166,6 @@ void CLEClass::load_white_cert_list()
 }
 #include <time.h>
 #include "stdint.h"
-
-#define UPDATE_DURATION (24*3600)
-ae_error_t CLEClass::update_white_list_by_url()
-{
-    // on reference LE we don't support querying white list from URL
-#ifndef REF_LE
-    static time_t last_updated_time = 0;
-    int i = 0;
-    ae_error_t ret = AE_FAILURE;
-    time_t cur_time = time(NULL);
-    if (last_updated_time + UPDATE_DURATION > cur_time){
-        return LE_WHITE_LIST_QUERY_BUSY;
-    }
-    if (!is_launch_token_required())
-    {
-        AESM_DBG_INFO("InKernel LE loaded");
-        return AE_SUCCESS;
-    }
-    AESM_LOG_INFO_ADMIN("%s", g_admin_event_string_table[SGX_ADMIN_EVENT_WL_UPDATE_START]);
-    for (i = 0; i < 2; i++){//at most retry once if network error
-        uint8_t *resp_buf = NULL;
-        uint32_t resp_size = 0;
-        aesm_config_infos_t urls = {0};
-        if(false == read_aesm_config(urls)){
-            return OAL_CONFIG_FILE_ERROR;
-        }
-        if(!g_network_service){
-            AESM_DBG_WARN("Network failure in getting white list...");
-            continue;
-        }
-        ret = g_network_service->aesm_send_recv_msg(urls.white_list_url,
-            NULL, 0, resp_buf, resp_size, GET, false);
-        if (ret == OAL_NETWORK_UNAVAILABLE_ERROR){
-            AESM_DBG_WARN("Network failure in getting white list...");
-            continue;
-        }
-        if (ret == AE_SUCCESS){
-            if (resp_buf != NULL && resp_size > 0){
-                ret = (ae_error_t)instance().white_list_register(resp_buf, resp_size, true);
-                if (AE_SUCCESS == ret&&resp_size >= sizeof(wl_cert_chain_t)){
-                    const wl_cert_chain_t* wl = reinterpret_cast<const wl_cert_chain_t*>(resp_buf);
-                    AESM_LOG_INFO_ADMIN("%s for Version: %d", g_admin_event_string_table[SGX_ADMIN_EVENT_WL_UPDATE_SUCCESS],
-                        _ntohl(wl->wl_cert.wl_version));
-                }
-                else if (LE_INVALID_PARAMETER == ret || LE_INVALID_PRIVILEGE_ERROR ==ret){
-                    AESM_LOG_WARN_ADMIN("%s", g_admin_event_string_table[SGX_ADMIN_EVENT_WL_UPDATE_FAIL]);
-                }else{
-                    ret = AE_FAILURE;//Internal error, maybe LE not consistent with AESM?
-                }
-            }
-            last_updated_time = cur_time;
-            if(g_network_service) g_network_service->aesm_free_response_msg(resp_buf);
-        }
-        break;
-    }
-    if (OAL_NETWORK_UNAVAILABLE_ERROR == ret){
-        AESM_LOG_WARN_ADMIN("%s", g_admin_event_string_table[SGX_ADMIN_EVENT_WL_UPDATE_NETWORK_FAIL]);
-    }
-    return ret;
-#else
-    return AE_SUCCESS;
-#endif
-}
 
 ae_error_t CLEClass::load_verified_white_cert_list()
 {

@@ -86,8 +86,7 @@ typedef enum _aesm_network_server_enum_type_t{
     PSE_PROVISIONING,
     ENDPOINT_SELECTION,
 	REVOCATION_LIST_RETRIEVAL,
-    PSE_OCSP,
-    SGX_WHITE_LIST_FILE
+    PSE_OCSP
 }aesm_network_server_enum_type_t;
 
 typedef enum _pve_msg_type_t

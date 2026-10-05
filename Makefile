@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+# Copyright (C) 2011-2025 Intel Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -56,6 +56,7 @@ preparation:
 	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	cd external/openmp/openmp_code && git apply ../0001-Enable-OpenMP-in-SGX.patch >/dev/null 2>&1 ||  git apply ../0001-Enable-OpenMP-in-SGX.patch --check -R
 	cd external/protobuf/protobuf_code && git apply ../sgx_protobuf.patch >/dev/null 2>&1 ||  git apply ../sgx_protobuf.patch --check -R
+	cd external/protobuf/protobuf_code && git apply ../0001-bumped-protobuf-to-1.33.0.patch >/dev/null 2>&1 ||  git apply ../0001-bumped-protobuf-to-1.33.0.patch --check -R
 	cd external/protobuf/protobuf_code && git submodule update --init --recursive && cd third_party/abseil-cpp && git apply ../../../sgx_abseil.patch>/dev/null 2>&1 || git apply ../../../sgx_abseil.patch --check -R
 	./external/sgx-emm/create_symlink.sh
 	cd external/cbor && cp -r libcbor sgx_libcbor
@@ -93,7 +94,7 @@ tdx:
 	$(MAKE) -C external/dcap_source/QuoteGeneration tdx_logic
 	$(MAKE) -C external/dcap_source/QuoteGeneration tdx_qgs
 	$(MAKE) -C external/dcap_source/QuoteGeneration tdx_attest
- 
+
 servtd_attest:
 	$(MAKE) -C sdk/ servtd_attest SERVTD_ATTEST=1
 	$(MAKE) -C external/dcap_source/QuoteGeneration servtd_attest
@@ -250,7 +251,12 @@ deb_libsgx_dcap_default_qpl:
 .PHONY: deb_libsgx_dcap_pccs
 deb_libsgx_dcap_pccs:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_dcap_pccs_pkg
-	$(CP) external/dcap_source/QuoteGeneration/installer/linux/deb/sgx-dcap-pccs/sgx-dcap-pccs*deb ./linux/installer/deb/sgx-aesm-service/
+	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/deb/sgx-dcap-pccs/sgx-dcap-pccs*deb ./linux/installer/deb/sgx-aesm-service/
+
+.PHONY: deb_pccs_admin_tool_pkg
+deb_pccs_admin_tool_pkg:
+	$(MAKE) -C external/dcap_source/QuoteGeneration deb_pccs_admin_tool_pkg
+	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/deb/*pccs-admin-tool/*pccs-admin-tool*deb ./linux/installer/deb/
 
 .PHONY: deb_libsgx_dcap_ql
 deb_libsgx_dcap_ql: deb_libsgx_pce_logic
@@ -278,13 +284,18 @@ deb_sgx_pck_id_retrieval_tool_pkg:
 .PHONY: deb_sgx_ra_service_pkg
 deb_sgx_ra_service_pkg:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_sgx_ra_service_pkg
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/sgx-ra-service*deb ./linux/installer/deb/sgx-aesm-service/
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/libsgx-ra-*deb ./linux/installer/deb/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/sgx-ra-service*deb ./linux/installer/deb/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/libsgx-ra-*deb ./linux/installer/deb/sgx-aesm-service/
 
 .PHONY: deb_tee_appraisal_tool
 deb_tee_appraisal_tool:
 	$(MAKE) -C external/dcap_source/QuoteGeneration deb_tee_appraisal_tool_pkg
 	$(CP) external/dcap_source/QuoteGeneration/installer/linux/deb/tee-appraisal-tool/tee-appraisal-tool*deb ./linux/installer/deb/sgx-aesm-service/
+
+.PHONY: deb_pcs_client_tool
+deb_pcs_client_tool:
+	$(MAKE) -C external/dcap_source/tools/PcsClientTool deb_sgx_pcs_client_pkg
+	$(CP) external/dcap_source/tools/PcsClientTool/installer/linux/deb/*pcs-client-tool/*pcs-client-tool*deb ./linux/installer/deb/
 
 .PHONY: deb_psw_pkg
 deb_psw_pkg: deb_libsgx_headers_pkg \
@@ -300,7 +311,8 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_ae_qe3 \
              deb_libsgx_ae_id_enclave \
              deb_libsgx_dcap_default_qpl \
-	     deb_libsgx_dcap_pccs \
+             deb_libsgx_dcap_pccs \
+             deb_pccs_admin_tool_pkg \
              deb_libsgx_dcap_ql \
              deb_libsgx_ae_qve \
              deb_sgx_dcap_quote_verify \
@@ -310,7 +322,8 @@ deb_psw_pkg: deb_libsgx_headers_pkg \
              deb_libsgx_tdx_logic \
              deb_tdx_qgs \
              deb_tdx_attest \
-             deb_tee_appraisal_tool
+             deb_tee_appraisal_tool \
+             deb_pcs_client_tool
 endif
 
 .PHONY: deb_local_repo
@@ -429,7 +442,12 @@ rpm_libsgx_dcap_default_qpl:
 .PHONY: rpm_libsgx_dcap_pccs
 rpm_libsgx_dcap_pccs:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_dcap_pccs_pkg
-	$(CP) external/dcap_source/QuoteGeneration/installer/linux/rpm/sgx-dcap-pccs/sgx-dcap-pccs*.rpm ./linux/installer/rpm/sgx-aesm-service/
+	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/rpm/sgx-dcap-pccs/sgx-dcap-pccs*.rpm ./linux/installer/rpm/sgx-aesm-service/
+
+.PHONY: rpm_pccs_admin_tool_pkg
+rpm_pccs_admin_tool_pkg:
+	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_pccs_admin_tool_pkg
+	$(CP) external/dcap_source/QuoteGeneration/pccs/build_infrastructure/installer/linux/rpm/*pccs-admin-tool/*pccs-admin-tool*.rpm ./linux/installer/rpm/
 
 .PHONY: rpm_libsgx_dcap_ql
 rpm_libsgx_dcap_ql:
@@ -457,13 +475,18 @@ rpm_sgx_pck_id_retrieval_tool_pkg:
 .PHONY: rpm_sgx_ra_service_pkg
 rpm_sgx_ra_service_pkg:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_sgx_ra_service_pkg
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/sgx-ra-service*rpm ./linux/installer/rpm/sgx-aesm-service/
-	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/installer/libsgx-ra-*rpm ./linux/installer/rpm/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/sgx-ra-service*rpm ./linux/installer/rpm/sgx-aesm-service/
+	$(CP) external/dcap_source/tools/SGXPlatformRegistration/build/release/installer/libsgx-ra-*rpm ./linux/installer/rpm/sgx-aesm-service/
 
 .PHONY: rpm_tee_appraisal_tool
 rpm_tee_appraisal_tool:
 	$(MAKE) -C external/dcap_source/QuoteGeneration rpm_tee_appraisal_tool_pkg
 	$(CP) external/dcap_source/QuoteGeneration/installer/linux/rpm/tee-appraisal-tool/tee-appraisal-tool*rpm ./linux/installer/rpm/sgx-aesm-service/
+
+.PHONY: rpm_pcs_client_tool
+rpm_pcs_client_tool:
+	$(MAKE) -C external/dcap_source/tools/PcsClientTool rpm_sgx_pcs_client_pkg
+	$(CP) external/dcap_source/tools/PcsClientTool/installer/linux/rpm/*pcs-client-tool/*pcs-client-tool*rpm ./linux/installer/rpm/
 
 .PHONY: rpm_psw_pkg
 rpm_psw_pkg: rpm_libsgx_headers_pkg \
@@ -479,7 +502,8 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_ae_qe3 \
              rpm_libsgx_ae_id_enclave \
              rpm_libsgx_dcap_default_qpl \
-	     rpm_libsgx_dcap_pccs \
+             rpm_libsgx_dcap_pccs \
+             rpm_pccs_admin_tool_pkg \
              rpm_libsgx_dcap_ql \
              rpm_libsgx_ae_qve \
              rpm_sgx_dcap_quote_verify \
@@ -489,7 +513,8 @@ rpm_psw_pkg: rpm_libsgx_headers_pkg \
              rpm_libsgx_tdx_logic \
              rpm_tdx_qgs \
              rpm_tdx_attest \
-             rpm_tee_appraisal_tool
+             rpm_tee_appraisal_tool \
+             rpm_pcs_client_tool
 endif
 
 .PHONY: rpm_local_repo
@@ -502,8 +527,6 @@ clean:
 	@$(RM)   -r $(ROOT_DIR)/build
 	@$(RM)   -r linux/installer/bin/install-sgx-*.bin*.withLicense
 	@$(RM)   -r linux/installer/bin/sgx_linux*.bin
-	@$(RM)   -f ./linux/installer/deb/sgx-aesm-service/sgx-dcap-pccs*deb
-	@$(RM)   -f ./linux/installer/rpm/sgx-aesm-service/sgx-dcap-pccs*rpm
 	./linux/installer/deb/sgx-aesm-service/clean.sh
 	./linux/installer/deb/libsgx-epid/clean.sh
 	./linux/installer/deb/libsgx-launch/clean.sh
@@ -532,6 +555,8 @@ endif
 ifeq ("$(shell test -f external/dcap_source/QuoteVerification/Makefile && echo Makefile exists)", "Makefile exists")
 	@$(MAKE) -C external/dcap_source/QuoteVerification  clean
 	@$(MAKE) -C external/dcap_source/QuoteGeneration    clean
+	@$(MAKE) -C external/dcap_source/QuoteGeneration/pccs clean
+	@$(MAKE) -C external/dcap_source/tools/PcsClientTool clean
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-ae-qve/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-ae-qe3/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-ae-id-enclave/clean.sh
@@ -544,7 +569,6 @@ ifeq ("$(shell test -f external/dcap_source/QuoteVerification/Makefile && echo M
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-pce-logic/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-qe3-logic/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/libsgx-dcap-quote-verify/clean.sh
-	./external/dcap_source/QuoteGeneration/installer/linux/deb/sgx-dcap-pccs/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/deb/tee-appraisal-tool/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-qve/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-ae-qe3/clean.sh
@@ -558,7 +582,6 @@ ifeq ("$(shell test -f external/dcap_source/QuoteVerification/Makefile && echo M
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-pce-logic/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-qe3-logic/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/libsgx-dcap-quote-verify/clean.sh
-	./external/dcap_source/QuoteGeneration/installer/linux/rpm/sgx-dcap-pccs/clean.sh
 	./external/dcap_source/QuoteGeneration/installer/linux/rpm/tee-appraisal-tool/clean.sh
 endif
 

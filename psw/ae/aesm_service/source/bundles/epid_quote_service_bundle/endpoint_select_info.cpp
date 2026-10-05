@@ -346,13 +346,6 @@ final_point:
 const char *EndpointSelectionInfo::get_server_url(aesm_network_server_enum_type_t type)
 {
     AESMLogicLock lock(_es_lock);
-    if (type == SGX_WHITE_LIST_FILE){
-        if (!_is_white_list_url_valid){
-           (void)read_aesm_config(_config_urls);
-            _is_white_list_url_valid = true;
-        }
-        return _config_urls.white_list_url;
-    }
     if(!_is_server_url_valid){
         (void)get_url_info();
     }

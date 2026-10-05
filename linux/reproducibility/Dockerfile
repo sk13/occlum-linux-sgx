@@ -1,7 +1,7 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN apt-get update \
-        && apt-get install -y curl python-is-python3 perl git \
+        && apt-get install -y curl python-is-python3 perl git xz-utils \
         && mkdir -p /nix /etc/nix \
         && chmod a+rwx /nix \
         && echo 'sandbox = false' > /etc/nix/nix.conf \
@@ -47,7 +47,7 @@ stdenvNoCC.mkDerivation { \n\
 
 #install the required software
 RUN touch .bash_profile \
-&& curl https://releases.nixos.org/nix/nix-2.9.0/install | sh \
+&& curl https://releases.nixos.org/nix/nix-2.18.0/install | sh \
 && . /home/user/.nix-profile/etc/profile.d/nix.sh \
 && nix-env -i /nix/store/n0wh7aglap7fl8jfnmgnn1vdv71a9br9-autoconf-2.69 \
 && nix-env -i /nix/store/laf3s9p2rsk2sz78v83ni7wvp4qsbii3-automake-1.16.5 \
