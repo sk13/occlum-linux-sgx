@@ -29,8 +29,8 @@
  *
  */
 
-#ifdef SGX_PFS_PARALLEL_FLUSH
 #include <vector>
+#ifdef SGX_PFS_PARALLEL_FLUSH
 #include <pthread.h>
 #endif
 #include "sgx_tprotected_fs.h"
