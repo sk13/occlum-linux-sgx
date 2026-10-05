@@ -42,10 +42,6 @@ else
      AESM_CONFIG += -DCMAKE_BUILD_TYPE=Release
 endif
 
-ifeq ($(BUILD_REF_LE), 1)
-     AESM_CONFIG += -DREF_LE=ON
-endif
-
 ifeq ($(ARCH), x86)
     SQLITECFLAGS += -m32
 else
@@ -61,19 +57,14 @@ CXXFLAGS += -fpie
 CFLAGS += -fpie
 CFLAGS := $(filter-out -Werror, $(CFLAGS))
 
-WHITE_LIST_FILE := $(LINUX_PSW_DIR)/ae/data/prebuilt/white_list_cert_to_be_verify.bin
 APPNAME         := source/build/bin/aesm_service
 CPPMICROSERVICES:= $(CPPMICROSERVICES_DIR)/build/lib/libCppMicroServices.so.4.0.0
 RDRAND_LIBDIR :=$(LINUX_EXTERNAL_DIR)/rdrand/src
 RDRAND_MAKEFILE := $(RDRAND_LIBDIR)/Makefile
 
 .PHONY: all
-all: $(APPNAME) $(APPNAME_DEBUG) copy_data_file | $(BUILD_DIR)
+all: $(APPNAME) $(APPNAME_DEBUG) | $(BUILD_DIR)
 	$(CP) -r source/build/bin/* $|
-
-copy_data_file:
-	@$(MKDIR) -p data
-	@$(CP) $(WHITE_LIST_FILE) data/white_list_cert_to_be_verify.bin
 
 $(APPNAME): $(CPPMICROSERVICES) source/build/CMakeCache.txt urts RDRAND
 	$(MAKE) -C source/build

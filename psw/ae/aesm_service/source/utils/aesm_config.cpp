@@ -62,7 +62,7 @@ struct _config_patterns_t{
     {config_space, "^[[:blank:]]*$"},   //matching empty line
     {config_aesm_proxy_url,"^[[:blank:]]*aesm[[:blank:]]*proxy[[:blank:]]*=" URL_PATTERN OPTION_COMMENT "$"}, //matching line in format: aesm proxy = ...
     {config_aesm_proxy_type, "^[[:blank:]]*proxy[[:blank:]]*type[[:blank:]]*=[[:blank:]]([^[:blank:]]+)[[:blank:]]*" OPTION_COMMENT "$"},//matching line in format: proxy type = [direct|default|manual]
-    {config_aesm_quoting_type, "^[[:blank:]]*default[[:blank:]]*quoting[[:blank:]]*type[[:blank:]]*=[[:blank:]]([^[:blank:]]+)[[:blank:]]*" OPTION_COMMENT "$"},//matching line in format: default quoting type = [ecdsa_256|epid_unlinkable|epid_linkable]
+    {config_aesm_quoting_type, "^[[:blank:]]*default[[:blank:]]*quoting[[:blank:]]*type[[:blank:]]*=[[:blank:]]([^[:blank:]]+)[[:blank:]]*" OPTION_COMMENT "$"},//matching line in format: default quoting type = [ecdsa_256]
     {config_qpl_log_level, "^[[:blank:]]*qpl[[:blank:]]*log[[:blank:]]*level[[:blank:]]*=[[:blank:]]([^[:blank:]]+)[[:blank:]]*" OPTION_COMMENT "$"},//matching line in format: qpl log level = [error|info]
 };
 
@@ -114,8 +114,6 @@ static const char *proxy_type_name[]={
 #define NUM_PROXY_TYPE (sizeof(proxy_type_name)/sizeof(proxy_type_name[0]))
 
 static const char *quoting_type_name[]={
-    "epid_unlinkable",
-    "epid_linkable",
     "ecdsa_256"
 };
 #define NUM_QUOTING_TYPE (sizeof(quoting_type_name)/sizeof(quoting_type_name[0]))

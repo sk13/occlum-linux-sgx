@@ -52,8 +52,7 @@ INCLUDE += -I$(LINUX_PSW_DIR)/ae/common         \
            -I$(LINUX_PSW_DIR)/ae/inc            \
            -I$(LINUX_PSW_DIR)/ae/inc/internal
 
-INCLUDE += -I$(LINUX_EXTERNAL_DIR)/epid-sdk          \
-           -I$(IPC_COMMON_INC_DIR)                   \
+INCLUDE += -I$(IPC_COMMON_INC_DIR)                   \
            -I$(UAE_INC_DIR)                          \
            -I$(IPC_COMMON_PROTO_DIR)                 \
            -I$(LINUX_PSW_DIR)/ae/aesm_service/source \
@@ -68,29 +67,9 @@ vpath %.c   $(COMMON_DIR)/src
 
 C_SRC   := se_trace.c
 
-IPC_SRC  :=  AEGetQuoteResponse.cpp \
-             AEInitQuoteRequest.cpp \
-             AEInitQuoteResponse.cpp \
-             AEReportAttestationRequest.cpp \
-             AEReportAttestationResponse.cpp \
-             AECheckUpdateStatusRequest.cpp \
-             AECheckUpdateStatusResponse.cpp \
-             ProtobufSerializer.cpp \
-             AEGetLaunchTokenRequest.cpp  \
-             AEGetWhiteListSizeRequest.cpp \
-             AEGetWhiteListSizeResponse.cpp \
-             AEGetWhiteListRequest.cpp \
-             AEGetWhiteListResponse.cpp \
-             AESGXGetExtendedEpidGroupIdRequest.cpp \
-             AESGXGetExtendedEpidGroupIdResponse.cpp \
-             AESGXSwitchExtendedEpidGroupRequest.cpp \
-             AESGXSwitchExtendedEpidGroupResponse.cpp \
-             AESGXRegisterRequest.cpp \
-             AESGXRegisterResponse.cpp \
+IPC_SRC  :=  ProtobufSerializer.cpp \
              SocketTransporter.cpp \
-             AEGetLaunchTokenResponse.cpp  \
              UnixCommunicationSocket.cpp \
-             AEGetQuoteRequest.cpp \
              UnixSocketFactory.cpp \
              NonBlockingUnixCommunicationSocket.cpp \
              NonBlockingUnixSocketFactory.cpp \
@@ -112,9 +91,7 @@ PROTOBUF_SRC  := messages.pb.cc
 SRC :=       AEServicesImpl.cpp \
              AEServicesProvider.cpp \
              uae_api.cpp \
-             se_sig_rl.cpp \
-             sgx_uae_service.cpp \
-             uae_service_assert.cpp
+             sgx_uae_service.cpp
 
 LEGACY_SRC := legacy_uae_service.cpp \
               uae_service_version.cpp
@@ -125,7 +102,7 @@ LEGACY_OBJ := $(LEGACY_SRC:.cpp=.o)
 
 LDUFLAGS:= -pthread $(COMMON_LDFLAGS)
 
-LIBNAME := libsgx_epid.so libsgx_launch.so libsgx_quote_ex.so
+LIBNAME := libsgx_quote_ex.so
 LEGACY_LIBNAME := libsgx_uae_service.so
 
 .PHONY: all

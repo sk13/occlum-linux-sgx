@@ -68,7 +68,7 @@ Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 ENCLAVE_LINK_FLAGS := $(Enclave_Security_Link_Flags) \
      -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
              -Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-             -Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+             -Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
              -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
              -Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
              -Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
@@ -84,13 +84,7 @@ SGX_COMMON_CXXFLAGS := $(SGX_COMMON_FLAGS) -Wnon-virtual-dtor -std=c++11
 
 Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I../Include
 
-Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections
-CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
-ifeq ($(CC_BELOW_4_9), 1)
-        Enclave_C_Flags += -fstack-protector
-else
-        Enclave_C_Flags += -fstack-protector-strong
-endif
+Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++
 
 Enclave_Cpp_Files := $(wildcard *.cpp)

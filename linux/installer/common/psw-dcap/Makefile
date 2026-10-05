@@ -1,32 +1,6 @@
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# Copyright(c) 2011-2026 Intel Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 #
 
 include installConfig
@@ -39,14 +13,8 @@ ACQUIRE_DCAP_VERSION = $(shell awk  \
                       '$$2 ~ /$1/ { print substr($$3, 2, length($$3) - 2); }' \
                       $(SRCDIR)/external/dcap_source/QuoteGeneration/common/inc/internal/se_version.h)
 
-LE_FULL_VER:= $(call ACQUIRE_PSW_VERSION,LE_VERSION)
-LE_MAJOR_VER:=$(word 1,$(subst ., ,$(LE_FULL_VER)))
-QE_FULL_VER:= $(call ACQUIRE_PSW_VERSION,QE_VERSION)
-QE_MAJOR_VER:=$(word 1,$(subst ., ,$(QE_FULL_VER)))
 PCE_FULL_VER:= $(call ACQUIRE_PSW_VERSION,PCE_VERSION)
 PCE_MAJOR_VER:=$(word 1,$(subst ., ,$(PCE_FULL_VER)))
-PVE_FULL_VER:= $(call ACQUIRE_PSW_VERSION,PVE_VERSION)
-PVE_MAJOR_VER:=$(word 1,$(subst ., ,$(PVE_FULL_VER)))
 IDE_FULL_VER:= $(call ACQUIRE_DCAP_VERSION,IDE_VERSION)
 IDE_MAJOR_VER:=$(word 1,$(subst ., ,$(IDE_FULL_VER)))
 QE3_FULL_VER:= $(call ACQUIRE_DCAP_VERSION,QE3_VERSION)
@@ -61,10 +29,6 @@ URTS_FULL_VER:= $(call ACQUIRE_PSW_VERSION,URTS_VERSION)
 URTS_MAJOR_VER:=$(word 1,$(subst ., ,$(URTS_FULL_VER)))
 UAE_SERVICE_FULL_VER:= $(call ACQUIRE_PSW_VERSION,UAE_SERVICE_VERSION)
 UAE_SERVICE_MAJOR_VER:=$(word 1,$(subst ., ,$(UAE_SERVICE_FULL_VER)))
-EPID_FULL_VER:= $(call ACQUIRE_PSW_VERSION,EPID_VERSION)
-EPID_MAJOR_VER:=$(word 1,$(subst ., ,$(EPID_FULL_VER)))
-LAUNCH_FULL_VER:= $(call ACQUIRE_PSW_VERSION,LAUNCH_VERSION)
-LAUNCH_MAJOR_VER:=$(word 1,$(subst ., ,$(LAUNCH_FULL_VER)))
 QUOTE_EX_FULL_VER:= $(call ACQUIRE_PSW_VERSION,QUOTE_EX_VERSION)
 QUOTE_EX_MAJOR_VER:=$(word 1,$(subst ., ,$(QUOTE_EX_FULL_VER)))
 QPL_FULL_VER:= $(call ACQUIRE_DCAP_VERSION,DEFAULT_QPL_VERSION)
@@ -151,26 +115,18 @@ post_$(1): $(1) | $(PACKAGE_ROOT_PATH)
 endef
 
 AESM_SERVICE_PKGS:= $(AESM_PCE_PACKAGE)      \
-                    $(AESM_EPID_PACKAGE)     \
                     $(AESM_ECDSA_PACKAGE)    \
-                    $(AESM_LAUNCH_PACKAGE)   \
                     $(AESM_QUOTE_EX_PACKAGE) \
                     $(AESM_SERVICE_PACKAGE)  \
                     $(QE3_LOGIC_PACKAGE)     \
                     $(PCE_LOGIC_PACKAGE)
 
-AE_PKGS:= $(AE_EPID_PACKAGE)                 \
-          $(AE_IDE_PACKAGE)                  \
-          $(AE_LE_PACKAGE)                   \
+AE_PKGS:= $(AE_IDE_PACKAGE)                  \
           $(AE_PCE_PACKAGE)                  \
           $(AE_QE3_PACKAGE)                  \
           $(AE_QVE_PACKAGE)
 
-DEV_LIB_PKGS:= $(EPID_PACKAGE)               \
-               $(EPID_DEV_PACKAGE)           \
-               $(LAUNCH_PACKAGE)             \
-               $(LAUNCH_DEV_PACKAGE)         \
-               $(QUOTE_EX_PACKAGE)           \
+DEV_LIB_PKGS:= $(QUOTE_EX_PACKAGE)           \
                $(QUOTE_EX_DEV_PACKAGE)       \
                $(ENCLAVE_COMMON_PACKAGE)     \
                $(ENCLAVE_COMMON_DEV_PACKAGE) \
@@ -257,17 +213,6 @@ install_$(PCK_ID_RETRIEVAL_TOOL_PACKAGE): pre_$(PCK_ID_RETRIEVAL_TOOL_PACKAGE) |
 
 PHONY+=install_ae
 install_ae: $(foreach PKG,$(AE_PKGS),post_$(PKG))
-	cd $(shell readlink -m $(DESTDIR)/$(AE_EPID_PACKAGE)/$(SGX_INSTALL_PATH)/$(AESM_SERVICE_PACKAGE)/aesm) && \
-	mv libsgx_qe.signed.so libsgx_qe.signed.so.$(QE_FULL_VER)                                              && \
-	ln -fs libsgx_qe.signed.so.$(QE_FULL_VER) libsgx_qe.signed.so.$(QE_MAJOR_VER)                          && \
-	ln -fs libsgx_qe.signed.so.$(QE_MAJOR_VER) libsgx_qe.signed.so                                         && \
-	mv libsgx_pve.signed.so libsgx_pve.signed.so.$(PVE_FULL_VER)                                           && \
-	ln -fs libsgx_pve.signed.so.$(PVE_FULL_VER) libsgx_pve.signed.so.$(PVE_MAJOR_VER)                      && \
-	ln -fs libsgx_pve.signed.so.$(PVE_MAJOR_VER) libsgx_pve.signed.so
-	cd $(shell readlink -m $(DESTDIR)/$(AE_LE_PACKAGE)/$(SGX_INSTALL_PATH)/$(AESM_SERVICE_PACKAGE)/aesm)   && \
-	mv libsgx_le.signed.so libsgx_le.signed.so.$(LE_FULL_VER)                                              && \
-	ln -fs libsgx_le.signed.so.$(LE_FULL_VER) libsgx_le.signed.so.$(LE_MAJOR_VER)                          && \
-	ln -fs libsgx_le.signed.so.$(LE_MAJOR_VER) libsgx_le.signed.so
 	cd $(shell readlink -m $(DESTDIR)/$(AE_PCE_PACKAGE)/$(USR_LIB_PATH))                                   && \
 	mv libsgx_pce.signed.so libsgx_pce.signed.so.$(PCE_FULL_VER)                                           && \
 	ln -fs libsgx_pce.signed.so.$(PCE_FULL_VER) libsgx_pce.signed.so.$(PCE_MAJOR_VER)                      && \
@@ -291,16 +236,6 @@ install_ae: $(foreach PKG,$(AE_PKGS),post_$(PKG))
 PHONY+=install_dev_lib
 install_dev_lib: $(foreach PKG,$(DEV_LIB_PKGS),post_$(PKG))
 	rm -fr $(shell readlink -m $(DESTDIR)/$(SGX_HEADERS_PACKAGE)/$(USR_LIB_PATH))
-	cd $(shell readlink -m $(DESTDIR)/$(EPID_PACKAGE)/$(USR_LIB_PATH))     && \
-	mv libsgx_epid.so libsgx_epid.so.$(EPID_FULL_VER)                      && \
-	ln -fs libsgx_epid.so.$(EPID_FULL_VER) libsgx_epid.so.$(EPID_MAJOR_VER)
-	cd $(shell readlink -m $(DESTDIR)/$(EPID_DEV_PACKAGE)/$(USR_LIB_PATH)) && \
-	ln -fs libsgx_epid.so.$(EPID_MAJOR_VER) libsgx_epid.so
-	cd $(shell readlink -m $(DESTDIR)/$(LAUNCH_PACKAGE)/$(USR_LIB_PATH))     && \
-	mv libsgx_launch.so libsgx_launch.so.$(LAUNCH_FULL_VER)                  && \
-	ln -fs libsgx_launch.so.$(LAUNCH_FULL_VER) libsgx_launch.so.$(LAUNCH_MAJOR_VER)
-	cd $(shell readlink -m $(DESTDIR)/$(LAUNCH_DEV_PACKAGE)/$(USR_LIB_PATH)) && \
-	ln -fs libsgx_launch.so.$(LAUNCH_MAJOR_VER) libsgx_launch.so
 	cd $(shell readlink -m $(DESTDIR)/$(QUOTE_EX_PACKAGE)/$(USR_LIB_PATH))     && \
 	mv libsgx_quote_ex.so libsgx_quote_ex.so.$(QUOTE_EX_FULL_VER)              && \
 	ln -fs libsgx_quote_ex.so.$(QUOTE_EX_FULL_VER) libsgx_quote_ex.so.$(QUOTE_EX_MAJOR_VER)

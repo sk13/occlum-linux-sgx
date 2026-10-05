@@ -1,35 +1,8 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+# Copyright(c) 2011-2026 Intel Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#
-
 
 set -e
 
@@ -47,14 +20,10 @@ SGX_VERSION=$(awk '/STRFILEVER/ {print $3}' ${ROOT_DIR}/common/inc/internal/se_v
 DEB_BUILD_FOLDER=${AESM_SERVICE_PACKAGE_NAME}-${SGX_VERSION}
 
 PACKAGE_NAMES[0]=${AESM_SERVICE_PACKAGE_NAME}
-PACKAGE_NAMES[1]=${AE_EPID_PACKAGE_NAME}
-PACKAGE_NAMES[2]=${AE_LE_PACKAGE_NAME}
-PACKAGE_NAMES[3]=${AE_PCE_PACKAGE_NAME}
-PACKAGE_NAMES[4]=${AESM_ECDSA_PACKAGE_NAME}
-PACKAGE_NAMES[5]=${AESM_EPID_PACKAGE_NAME}
-PACKAGE_NAMES[6]=${AESM_LAUNCH_PACKAGE_NAME}
-PACKAGE_NAMES[7]=${AESM_PCE_PACKAGE_NAME}
-PACKAGE_NAMES[8]=${AESM_QUOTE_EX_PACKAGE_NAME}
+PACKAGE_NAMES[1]=${AE_PCE_PACKAGE_NAME}
+PACKAGE_NAMES[2]=${AESM_ECDSA_PACKAGE_NAME}
+PACKAGE_NAMES[3]=${AESM_PCE_PACKAGE_NAME}
+PACKAGE_NAMES[4]=${AESM_QUOTE_EX_PACKAGE_NAME}
 
 main() {
     pre_build
@@ -115,10 +84,12 @@ get_os_code() {
 update_version() {
     pushd ${SCRIPT_DIR}/${DEB_BUILD_FOLDER}
     INS_VERSION=$(echo $(dpkg-parsechangelog |grep "Version" | cut -d: -f2))
-    DEB_VERSION=$(echo ${INS_VERSION} | cut -d- -f2)
+    INS_DATE=$(dpkg-parsechangelog | awk '/^Date:/ {print substr($0, index($0,$2)) ; exit}')
+    DEB_VERSION=$(echo $INS_VERSION | cut -d- -f2)
 
     FULL_VERSION=${SGX_VERSION}-$(get_os_code)${DEB_VERSION}
-    sed -i "s/${INS_VERSION}/${FULL_VERSION}/" debian/changelog
+    sed -i "0,/${INS_VERSION}/s//${FULL_VERSION}/" debian/changelog
+    sed -i "0,/${INS_DATE}/s//$(date -u +"%a, %d %b %Y %H:%M:%S +0000")/" debian/changelog
     sed -i "s/@dep_version@/${FULL_VERSION}/g" debian/control
     popd
 }

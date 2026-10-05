@@ -40,7 +40,6 @@
 #include <se_stdio.h>
 #include <se_string.h>
 #include "se_thread.h"
-#include "type_length_value.h"
 #include "aeerror.h"
 #include "aesm_error.h"
 #include "sgx_error.h"

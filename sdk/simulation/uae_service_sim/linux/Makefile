@@ -37,18 +37,19 @@ get_version_name = $(addsuffix _VERSION,$(shell echo $(subst _deploy,,$(subst li
 PREBUILT_OPENSSL_DIR := $(LINUX_EXTERNAL_DIR)/dcap_source/prebuilt/openssl
 CRYPTO_LIB := -L$(PREBUILT_OPENSSL_DIR)/lib/linux64 -lcrypto
 
-INCLUDES := -I..                                            \
-            -I$(COMMON_DIR)/inc                             \
-            -I$(COMMON_DIR)/inc/internal                    \
-            -I$(LINUX_SDK_DIR)/tseal                        \
-            -I$(LINUX_SDK_DIR)/simulation/tinst             \
-            -I$(LINUX_SDK_DIR)/simulation/urtssim           \
-            -I$(LINUX_EXTERNAL_DIR)/epid-sdk                \
-            -I$(LINUX_EXTERNAL_DIR)/rdrand/                 \
-            -I$(LINUX_PSW_DIR)/ae/inc                       \
-            -I$(LINUX_PSW_DIR)/ae/inc/internal              \
-            -I$(LINUX_PSW_DIR)/ae/common                    \
-            -I$(PREBUILT_OPENSSL_DIR)/inc
+INCLUDES := -I..                                                   \
+            -I$(COMMON_DIR)/inc                                    \
+            -I$(COMMON_DIR)/inc/internal                           \
+            -I$(LINUX_SDK_DIR)/tseal                               \
+            -I$(LINUX_SDK_DIR)/simulation/tinst                    \
+            -I$(LINUX_SDK_DIR)/simulation/urtssim                  \
+            -I$(LINUX_EXTERNAL_DIR)/rdrand/                        \
+            -I$(LINUX_PSW_DIR)/ae/inc                              \
+            -I$(LINUX_PSW_DIR)/ae/inc/internal                     \
+            -I$(LINUX_PSW_DIR)/ae/common                           \
+            -I$(PREBUILT_OPENSSL_DIR)/inc                          \
+            -I$(DCAP_DIR)/QuoteGeneration/quote_wrapper/common/inc \
+            -I$(DCAP_DIR)/QuoteGeneration/pce_wrapper/inc
 
 
 CXXFLAGS += -Wall -fPIC $(INCLUDES) -Werror -g $(CET_FLAGS)
@@ -68,14 +69,14 @@ vpath %.cpp $(LINUX_PSW_DIR)/ae/common \
 
 vpath %.c   $(COMMON_DIR)/src
 
-CPP_SRC := $(wildcard *.cpp ../*.cpp) se_sig_rl.cpp cpusvn_util.cpp sgx_read_rand.cpp
+CPP_SRC := $(wildcard *.cpp ../*.cpp) cpusvn_util.cpp sgx_read_rand.cpp
 CPP_SRC += crypto_evp_digest.cpp crypto_cmac_128.cpp
 C_SRC   := se_trace.c se_thread.c
 
 OBJ := $(sort $(CPP_SRC:.cpp=.o)) \
        $(C_SRC:.c=.o)
 
-LIBNAME = libsgx_epid_sim.so libsgx_launch_sim.so libsgx_quote_ex_sim.so libsgx_uae_service_sim.so
+LIBNAME = libsgx_quote_ex_sim.so libsgx_uae_service_sim.so
 LIBUAE_SERVICE_DEPLOY := $(LIBNAME:_sim.so=_deploy.so)
 
 .PHONY: all
@@ -85,6 +86,12 @@ all: $(LIBNAME) $(LIBUAE_SERVICE_DEPLOY) $(LEGACY_LIBUAE_SERVICE_DEPLOY) | $(BUI
 
 libsgx_%_sim.so: $(OBJ) -lrdrand
 	$(CXX) $(CXXFLAGS) $^ -shared $(LDUFLAGS) -Wl,--version-script=$(@:_sim.so=.lds) -Wl,--gc-sections $(EXTERNAL_LIB) -o $@
+
+# One-off suppress of deprecated API warnings (token-based launch control is deprecated but we want to leave behind hollow symbols for ABI compat)
+../licensing_sim.o: ../licensing_sim.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -Wno-deprecated -c $< -o $@
+
+../quoting_sim.o: CXXFLAGS += -Wno-deprecated-declarations
 
 %.o: %.c
 	$(CC) $(CFLAGS) -Werror -fPIC -c $< -o $@

@@ -36,7 +36,6 @@
 #include "aesm_error.h"
 #include "arch.h"
 #include "aeerror.h"
-#include "tlv_common.h"
 #include "se_thread.h"
 #include "se_stdio.h"
 #include "se_memcpy.h"
@@ -45,7 +44,6 @@
 #include <time.h>
 #include <string.h>
 #include "se_wrapper.h"
-#include "platform_info_blob.h"
 
 #include "default_url_info.hh"
 

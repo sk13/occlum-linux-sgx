@@ -66,13 +66,7 @@ struct INetworkService : virtual public IService
 
     virtual void aesm_free_response_msg(
         uint8_t *resp) = 0;
-        
-    virtual ae_error_t aesm_send_recv_msg_encoding(
-        const char *url,
-        const uint8_t *msg,
-        uint32_t msg_size,
-        uint8_t* &resp,
-        uint32_t& resp_size) = 0;
+
 };
 
 #endif /* NETWORK_SERVICE_EXPORT_H */

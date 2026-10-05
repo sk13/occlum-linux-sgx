@@ -37,8 +37,8 @@
 #include "sgx_utils.h"
 #include "sgx_lfence.h"
 #include "byte_order.h"
-#include "pve_qe_common.h"
 #include "arch.h"
+#include "le2be_macros.h"
 #include <assert.h>
 
 ae_error_t get_ppid(ppid_t* ppid);
@@ -290,7 +290,7 @@ uint32_t certify_enclave(const psvn_t* cert_psvn,
     if(AE_SUCCESS!=ae_ret){
         goto ret_point;
     }
-    SWAP_ENDIAN_32B(pec_prv_key);
+    SwapEndian_32B(pec_prv_key);
     sgx_status = sgx_ecc256_open_context(&handle);
     if (SGX_ERROR_OUT_OF_MEMORY == sgx_status)
     {
@@ -330,8 +330,8 @@ uint32_t certify_enclave(const psvn_t* cert_psvn,
         goto ret_point;
     }
     //swap from little endian used in sgx_crypto to big endian used in network byte order
-    SWAP_ENDIAN_32B(reinterpret_cast<sgx_ec256_signature_t *>(signature)->x);
-    SWAP_ENDIAN_32B(reinterpret_cast<sgx_ec256_signature_t *>(signature)->y);
+    SwapEndian_32B(reinterpret_cast<sgx_ec256_signature_t *>(signature)->x);
+    SwapEndian_32B(reinterpret_cast<sgx_ec256_signature_t *>(signature)->y);
 
     *signature_out_size = sizeof(sgx_ec256_signature_t);
     ae_ret = AE_SUCCESS;

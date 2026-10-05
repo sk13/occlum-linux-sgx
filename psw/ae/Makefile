@@ -40,18 +40,14 @@ else
 endif
 
 CHECK_PREBUILT :=
-ifeq ("$(wildcard data/prebuilt/libsgx_le.signed.so)", "")
+ifeq ("$(wildcard data/prebuilt/libsgx_pce.signed.so)", "")
 CHECK_PREBUILT := prebuilt_check_fail
 endif
 
 .PHONY: all
-ifeq ($(BUILD_REF_LE), 1)
-all: $(CMAKE_RESULT) AESM REF_LE COPY_AES| $(BUILD_DIR)
-else
 all: $(CMAKE_RESULT) AESM COPY_AES| $(BUILD_DIR)
-endif #($(BUILD_REF_LE), 1)
 
-# COPY_AES: currently copy le, qe, pve, pce, qe3
+# COPY_AES: currently copy le, pce, qe3
 .PHONY: COPY_AES
 COPY_AES: $(CHECK_PREBUILT) | $(BUILD_DIR)
 	$(CP) data/prebuilt/* $(BUILD_DIR)
@@ -62,17 +58,12 @@ AESM: | $(BUILD_DIR)
 	$(CP) aesm_service/config/aesmd_service/aesmd.conf $(BUILD_DIR)
 	$(CP) aesm_service/config/aesmd_service/aesmd.service $(BUILD_DIR)
 
-.PHONY: REF_LE
-REF_LE:
-	$(MAKE) -C ref_le
-
 $(BUILD_DIR):
 	@$(MKDIR) $@
 
 .PHONY: clean
 clean:
 	$(MAKE) -C aesm_service/                   clean
-	$(MAKE) -C ref_le                          clean
 
 .PHONY: rebuild
 rebuild:

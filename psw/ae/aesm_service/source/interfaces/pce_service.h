@@ -35,8 +35,6 @@
 #include "sgx_report.h"
 #include "aeerror.h"
 #include "aesm_error.h"
-#include "epid_pve_type.h"
-#include "se_sig_rl.h"
 
 
 struct IPceService : virtual public IService

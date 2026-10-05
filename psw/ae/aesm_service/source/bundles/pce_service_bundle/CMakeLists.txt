@@ -42,8 +42,6 @@ target_include_directories(${bundle} PRIVATE
 	${SGX_HEADER_DIR}
 	${PROJECT_SOURCE_DIR}/../../inc
 	${PROJECT_SOURCE_DIR}/../../inc/internal
-	${PROJECT_SOURCE_DIR}/../../pve
-	${PROJECT_SOURCE_DIR}/../../../../external/epid-sdk
 	${PROJECT_SOURCE_DIR}/../../../../external/dcap_source/QuoteGeneration/pce_wrapper/inc
 )
 

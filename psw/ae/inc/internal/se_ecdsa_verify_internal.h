@@ -39,7 +39,6 @@
 
 #include "sgx_error.h"
 #include "sgx_tcrypto.h"
-#include "se_sig_rl.h"
 
 sgx_status_t se_ecdsa_verify_internal(
     void *p_ecp,

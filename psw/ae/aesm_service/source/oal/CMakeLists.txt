@@ -48,7 +48,6 @@ target_include_directories(oal PRIVATE
 	${PROJECT_SOURCE_DIR}/../../inc/internal
 	${SGX_HEADER_DIR}
 	${PROJECT_SOURCE_DIR}/../../../../common/inc/internal
-	${PROJECT_SOURCE_DIR}/../../../../external/epid-sdk
 	${PROJECT_SOURCE_DIR}/../../data/constants/linux
 )
 

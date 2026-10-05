@@ -49,8 +49,6 @@ CONFIG   := config.xml
 endif
 EDLFILE  := $(wildcard *.edl)
 
-EPID_SDK_DIR := $(LINUX_EXTERNAL_DIR)/epid-sdk
-
 ifneq ($(SGX_MODE), HW)
 	URTSLIB := -lsgx_urts_sim
 	TRTSLIB := -lsgx_trts_sim

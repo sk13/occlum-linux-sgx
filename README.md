@@ -35,22 +35,15 @@ Introduction
 ------------
 Intel(R) Software Guard Extensions (Intel(R) SGX) is an Intel technology for application developers seeking to protect select code and data from disclosure or modification.
 
-The Linux\* Intel(R) SGX software stack is comprised of the Intel(R) SGX driver, the Intel(R) SGX SDK, and the Intel(R) SGX Platform Software (PSW). The Intel(R) SGX SDK and Intel(R) SGX PSW are hosted in the [linux-sgx](https://github.com/intel/linux-sgx) project.
+The Linux\* Intel(R) SGX software stack is comprised of the Intel(R) SGX driver, the Intel(R) SGX SDK, and the Intel(R) SGX Platform Software (PSW). The Intel(R) SGX SDK and Intel(R) SGX PSW are hosted in the [confidential-computing.sgx](https://github.com/intel/confidential-computing.sgx) project.
 
-The [SGXDataCenterAttestationPrimitives](https://github.com/intel/SGXDataCenterAttestationPrimitives/) project maintains an out-of-tree driver for the Linux\* Intel(R) SGX software stack, which will be used until the driver upstreaming process is complete. It is used on the platforms with *Flexible Launch Control* and *Intel(R) AES New Instructions* support and could support both Elliptic Curve Digital Signature algorithm (ECDSA) based attestation and Enhanced Privacy Identification (EPID) based attestation.
-
-**Note**: Ice Lake Xeon-SP (and the future Xeon-SP platforms) doesn't support EPID attestation.
-
-The [linux-sgx-driver](https://github.com/intel/linux-sgx-driver) project hosts the other out-of-tree driver for the Linux\* Intel(R) SGX software stack, which will be used until the driver upstreaming process is complete. It is used to support Enhanced Privacy Identification (EPID) based attestation on the platforms without *Flexible Launch Control*.
+The Linux\* kernel contains the necessary driver since the mainline kernel release 5.11. Accordingly, a driver installation is no longer necessary in Linux OSes with a newer kernel. The resulting device node is located at /dev/{sgx_enclave, sgx_provision}. Note that the platform needs to support [Flexible Launch Control](https://cc-enabling.trustedservices.intel.com/intel-sgx-sw-installation-guide-linux/02/installation_instructions/#driver-installation) and it must be configured.
 
 The [intel-device-plugins-for-kubernetes](https://github.com/intel/intel-device-plugins-for-kubernetes) project enables users to run container applications running Intel(R) SGX enclaves in Kubernetes clusters. It also gives instructions how to set up ECDSA based attestation in a cluster.
 
 
 The [intel-sgx-ssl](https://github.com/intel/intel-sgx-ssl) project provides a full-strength general purpose cryptography library for Intel(R) SGX enclave applications. It is based on the underlying OpenSSL* Open Source project. Intel(R) SGX provides a build combination to build out a SGXSSL based SDK as [below](#build-the-intelr-sgx-sdk-and-intelr-sgx-sdk-installer). Users could also utilize this cryptography library in SGX enclave applications seperately.
 
-
-This repository provides a reference implementation of a Launch Enclave for 'Flexible Launch Control' under [psw/ae/ref_le](psw/ae/ref_le). The reference LE implementation can be used as a basis for enforcing different launch control policy by the platform developer or owner. To build and try it by yourself, please refer to the [ref_le.md](psw/ae/ref_le/ref_le.md) for details.
-**NOTE**: The reference LE is only workable with [linux-sgx-driver](https://github.com/intel/linux-sgx-driver) and is planned to be deprecated starting from Intel(R) SGX release 2.20.
 
 License
 -------
@@ -85,7 +78,9 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
   * Red Hat Enterprise Linux Server release 9.4 64bits
+  * Red Hat Enterprise Linux Server release 10.0 64bits
   * CentOS Stream 9 64bits
+  * CentOS Stream 10 64bits
   * SUSE Linux Enterprise Server 15.6 64bits
   * Anolis OS 8.10 64bits
   * Azure Linux 3.0 64bits
@@ -102,12 +97,12 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
   ```
     $ sudo apt-get install build-essential ocaml ocamlbuild automake autoconf libtool wget python-is-python3 libssl-dev git cmake perl
   ```
-  * On Red Hat Enterprise Linux 9.4:
+  * On Red Hat Enterprise Linux 9.4 and 10.0:
   ```
     $ sudo yum groupinstall 'Development Tools'
     $ sudo yum install ocaml ocaml-ocamlbuild wget python3 openssl-devel git cmake perl
   ```
-  * On CentOS Stream 9:
+  * On CentOS Stream 9 and 10:
   ```
     $ sudo dnf group install 'Development Tools'
     $ sudo dnf install ocaml ocaml-ocamlbuild redhat-rpm-config openssl-devel wget rpm-build git cmake perl python3
@@ -140,11 +135,11 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
       ```
         $ sudo apt-get install libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev debhelper cmake reprepro unzip pkgconf libboost-dev libboost-system-dev libboost-thread-dev lsb-release libsystemd0
       ```
-      * On Red Hat Enterprise Linux 9.4:
+      * On Red Hat Enterprise Linux 9.4 and 10.0:
       ```
         $ sudo yum install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```
-      * On CentOS Stream 9:
+      * On CentOS Stream 9 and 10:
       ```
         $ sudo dnf install openssl-devel libcurl-devel protobuf-devel cmake rpm-build createrepo yum-utils pkgconf boost-devel protobuf-lite-devel systemd-libs
       ```      
@@ -165,8 +160,8 @@ Build the Intel(R) SGX SDK and Intel(R) SGX PSW Package
 
 - Download the source code and prepare the submodules and prebuilt binaries:
 ```
-   $ git clone https://github.com/intel/linux-sgx.git
-   $ cd linux-sgx && make preparation
+   $ git clone https://github.com/intel/confidential-computing.sgx.git sgx-source
+   $ cd sgx-source && make preparation
 ```
   The above ``make preparation`` would trigger the script ``download_prebuilt.sh`` to download the prebuilt binaries. You may need to set an https proxy for the `wget` tool used by the script (such as ``export https_proxy=http://test-proxy:test-port``)
 
@@ -241,7 +236,7 @@ You can find the tools and libraries generated in the `build/linux` directory.
 ```
   $ make clean
 ```
-  The build above uses prebuilt Intel(R) Architecture Enclaves(LE/PvE/QE/PCE) - the files ``psw/ae/data/prebuilt/libsgx_*.signed.so``, which have been signed by Intel in advance.
+  The build above uses prebuilt Intel(R) Architecture Enclaves(LE/PCE) - the files ``psw/ae/data/prebuilt/libsgx_*.signed.so``, which have been signed by Intel in advance.
 - To build those enclaves by yourself (without a signature), first you need to install latest Intel(R) SGX SDK from the [Intel(R) SGX SDK](https://software.intel.com/en-us/sgx-sdk/download) and then build PSW with the default configuration. After that, you can build each Architecture Enclave by using the `make` command from the corresponding folder:
 ```
   $ cd psw/ae/le
@@ -252,20 +247,20 @@ You can find the tools and libraries generated in the `build/linux` directory.
    ```
   $ make deb_psw_pkg
   ```
-  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/deb/libsgx-urts`, `linux/installer/deb/libsgx-enclave-common`, `linux/installer/deb/libsgx-uae-service`, `linux/installer/deb/libsgx-epid`, `linux/installer/deb/libsgx-launch`, `linux/installer/deb/libsgx-quote-ex` and `linux/installer/deb/sgx-aesm-service` respectively.
+  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/deb/libsgx-urts`, `linux/installer/deb/libsgx-enclave-common`, `linux/installer/deb/libsgx-uae-service`, `linux/installer/deb/libsgx-quote-ex` and `linux/installer/deb/sgx-aesm-service` respectively.
 
   **Note**: Besides the Intel(R) SGX PSW installer, the above command generates another debug symbol package named ``package-name-dbgsym_${version}-${revision}_amd64.ddeb`` for debug purpose.
-  **Note**: Starting with the 2.10 release, besides the Intel(R) SGX PSW installer, the above command generates [SGXDataCenterAttestationPrimitives](https://github.com/intel/SGXDataCenterAttestationPrimitives/) installers as well.
+  **Note**: Starting with the 2.10 release, besides the Intel(R) SGX PSW installer, the above command generates [SGXDataCenterAttestationPrimitives](https://github.com/intel/confidential-computing.tee.dcap) installers as well.
   **Note**: On Debian 10, the default PATH environment may not include /sbin. In this case, before trigger the build, please add /sbin to PATH environment by `export PATH=$PATH:/sbin`.
   **Note**: The above command builds the Intel(R) SGX PSW with default configuration firstly and then generates the target PSW Installer. To build the Intel(R) SGX PSW Installer without optimization and with full debug information kept in the tools and libraries, enter the following command:
   ```
   $ make deb_psw_pkg DEBUG=1
   ```
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10 and SUSE Linux Enterprise Server 15.6:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Anolis OS 8.10 and SUSE Linux Enterprise Server 15.6:
   ```
   $ make rpm_psw_pkg
   ```
-  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/rpm/libsgx-urts`, `linux/installer/rpm/libsgx-enclave-common`, `linux/installer/rpm/libsgx-uae-service`, `linux/installer/rpm/libsgx-epid`, `linux/installer/rpm/libsgx-launch`, `linux/installer/rpm/libsgx-quote-ex` and `linux/installer/rpm/sgx-aesm-service` respectively.
+  You can find the generated Intel(R) SGX PSW installers located under `linux/installer/rpm/libsgx-urts`, `linux/installer/rpm/libsgx-enclave-common`, `linux/installer/rpm/libsgx-uae-service`, `linux/installer/rpm/libsgx-quote-ex` and `linux/installer/rpm/sgx-aesm-service` respectively.
 
   **Note**: The above command builds the Intel(R) SGX PSW with default configuration firstly and then generates the target PSW Installer. To build the Intel(R) SGX PSW Installer with debug information kept in the tools and libraries, enter the following command:
   ```
@@ -315,16 +310,16 @@ You can find the tools and libraries generated in the `build/linux` directory.
   **Note**: The above command builds the local package repository. If you want to use it, you need to add it to the system repository configuration. Since the local package repository is not signed with GPG, you should ignore the gpgcheck when installing the packages.
 
 - To add the local RPM package repository to the system repository configuration, you can use the following command. You need to replace PATH_TO_LOCAL_REPO with the proper path on your system:
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Azure Linux 3.0, Anolis OS 8.10:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Azure Linux 3.0, Anolis OS 8.10:
   ```
-  $ sudo yum-config-manager --add-repo file://PATH_TO_LOCAL_REPO
+  $ sudo dnf config-manager --add-repo file://PATH_TO_LOCAL_REPO
   ```
   * On SUSE Linux Enterprise Server 15.6, you need to replace LOCAL_REPO_ALIAS with proper alias name for the local repo:
   ```
   $ sudo zypper addrepo PATH_TO_LOCAL_REPO LOCAL_REPO_ALIAS
   ```
 - To ignore the gpgcheck when you install the package, enter the following command:
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9, Azure Linux 3.0, Anolis OS 8.10:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Azure Linux 3.0, Anolis OS 8.10:
   ```
   $ sudo yum --nogpgcheck install <package>
   ```
@@ -340,7 +335,9 @@ Install the Intel(R) SGX SDK
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
   * Red Hat Enterprise Linux Server release 9.4 64bits
+  * Red Hat Enterprise Linux Server release 10.0 64bits
   * CentOS Stream 9 64bits
+  * CentOS Stream 10 64bits
   * SUSE Linux Enterprise Server 15.6 64bits
   * Anolis OS 8.10 64bits
   * Azure Linux 3.0 64bits
@@ -356,7 +353,7 @@ Install the Intel(R) SGX SDK
   ```
     $ sudo apt-get install build-essential python-is-python3
   ```
-  * On Red Hat Enterprise Linux 9.4, CentOS Stream 9 and Azure Linux 3.0:
+  * On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10 and Azure Linux 3.0:
   ```
      $ sudo yum groupinstall 'Development Tools'
      $ sudo yum install python3
@@ -403,9 +400,11 @@ NOTE: You need to set up the needed environment variables before compiling your 
 
 ### Compile and Run the Code Samples in the Hardware Mode
 If you use an Intel SGX hardware enabled machine, you can run the code samples in Hardware mode.
-Ensure that you install Intel(R) SGX driver and Intel(R) SGX PSW installer on the machine.
-See the earlier topic, *Build and Install the Intel(R) SGX Driver*, for information on how to install the Intel(R) SGX driver.
-See the later topic, *Install Intel(R) SGX PSW*, for information on how to install the PSW package.
+Ensure that your machine is running a Linux\* kernel with SGX driver support[^in-kernel-driver-info-note] and that Intel(R) SGX PSW is installed on the system.
+See the later topic, [*Install Intel(R) SGX PSW*](#install-the-intelr-sgx-psw), for information on how to install the PSW package.
+
+[^in-kernel-driver-info-note]: The Linux\* kernel contains the necessary driver since the mainline kernel release `5.11`.
+
 - Compile and run each code sample in Hardware mode, Debug build, as follows:
 ```
   $ cd ${sgx-sdk-install-path}/SampleCode/LocalAttestation
@@ -430,7 +429,9 @@ Install the Intel(R) SGX PSW
   * Ubuntu\* 22.04 LTS Server 64bits
   * Ubuntu\* 24.04 LTS Server 64bits
   * Red Hat Enterprise Linux Server release 9.4 64bits
+  * Red Hat Enterprise Linux Server release 10.0 64bits
   * CentOS Stream 9 64bits
+  * CentOS Stream 10 64bits
   * SUSE Linux Enterprise Server 15.6 64bits
   * Anolis OS 8.10 64bits
   * Azure Linux 3.0 64bits
@@ -438,18 +439,17 @@ Install the Intel(R) SGX PSW
   * Debian 12 64bits
 - Ensure that you have a system with the following required hardware:
   * 6th Generation Intel(R) Core(TM) Processor or newer
-- Configure the system with the **Intel SGX hardware enabled** option and install Intel(R) SGX driver in advance.
-  See the earlier topic, *Build and Install the Intel(R) SGX Driver*, for information on how to install the Intel(R) SGX driver.
+- Configure the system with the **Intel SGX hardware enabled** option in advance and ensure that your machine is running a Linux\* kernel with SGX driver support[^in-kernel-driver-info-note].
 - Install the library using the following command:
   * On Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12:
   ```
     $ sudo apt-get install libssl-dev libcurl4-openssl-dev libprotobuf-dev
   ```
-  * On Red Hat Enterprise Linux 9.4:
+  * On Red Hat Enterprise Linux 9.4 and 10.0:
   ```
     $ sudo yum install openssl-devel libcurl-devel protobuf-devel
   ```
-  * On CentOS Stream 9:
+  * On CentOS Stream 9 and 10:
   ```
     $ sudo dnf install libcurl-devel protobuf-devel
   ```
@@ -467,14 +467,19 @@ Install the Intel(R) SGX PSW
   ```
 
 ### Install the Intel(R) SGX PSW
-The SGX PSW provides 3 services: launch, EPID-based attestation, and algorithm agnostic attestation. Starting with the 2.8 release, the SGX PSW is split into smaller packages and the user can choose which features and services to install. There are 2 methods to install the required packages: Using individual packages or using the local repo generated by the build system. Using the local repo is recommended since the system will resolve the dependencies automatically. Currently, we support .deb and .rpm based repos.
+The SGX PSW provides enclave creation service and algorithm agnostic attestation. Starting with the 2.8 release, the SGX PSW is split into smaller packages and the user can choose which features and services to install. There are 2 methods to install the required packages: Using individual packages or using the local repo generated by the build system. Using the local repo is recommended since the system will resolve the dependencies automatically. Currently, we support .deb and .rpm based repos.
+
+> [!NOTE]
+>
+> Starting in release 2.28 of the PSW, all [legacy](https://community.intel.com/t5/Intel-Software-Guard-Extensions/IAS-End-of-Life-Announcement/td-p/1545831) EPID-based functionality has been removed. This includes legacy QE/PVE-based provisioning and attestation as well as platform services (PSE).
+> The legacy (whitelist-based) launch control functionality as well as support facilities for the deprecated <sup>[[ref1]](https://github.com/intel/confidential-computing.tee.dcap/blob/DCAP_1.23/driver/linux/README.md#important), [[ref2]](https://github.com/intel/linux-sgx-driver?tab=readme-ov-file#project-not-under-active-management)</sup> out-of-tree Linux kernel drivers have been removed.
+>
 
 #### Using the local repo(recommended)
 
-|   |Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.4, CentOS Stream 9, Anolis OS 8.10, and Azure Linux 3.0| SUSE Linux Enterprise Server 15|
+|   |Ubuntu 22.04, Ubuntu 24.04, Debian 10 and Debian 12|Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, Anolis OS 8.10, and Azure Linux 3.0| SUSE Linux Enterprise Server 15|
 | ------------ | ------------ | ------------ | ------------ |
-|launch service |apt-get install libsgx-launch libsgx-urts|yum install libsgx-launch libsgx-urts|zypper install libsgx-launch libsgx-urts|
-|EPID-based attestation service|apt-get install libsgx-epid libsgx-urts|yum install libsgx-epid libsgx-urts|zypper install libsgx-epid libsgx-urts|
+|launch service |apt-get install libsgx-urts|yum install libsgx-urts|zypper install libsgx-urts|
 |algorithm agnostic attestation service|apt-get install libsgx-quote-ex libsgx-urts|yum install libsgx-quote-ex libsgx-urts|zypper install libsgx-quote-ex libsgx-urts|
 |DCAP ECDSA-based service |apt-get install libsgx-dcap-ql|yum install libsgx-dcap-ql|zypper install libsgx-dcap-ql|
 
@@ -496,7 +501,7 @@ Some packages are configured with recommended dependency on other packages that 
 ```
   --no-install-recommends
 ```
-* On Red Hat Enterprise Linux 9.4, CentOS Stream 9, and Anolis OS 8.10:
+* On Red Hat Enterprise Linux 9.4 and 10.0, CentOS Stream 9 and 10, and Anolis OS 8.10:
 ```
   --setopt=install_weak_deps=False
 ```
@@ -510,10 +515,6 @@ To enable ECDSA attestation
 - Ensure that you have the following required hardware:
   * 8th Generation Intel(R) Core(TM) Processor or newer with **Flexible Launch Control** support*
   * Intel(R) Atom(TM) Processor with **Flexible Launch Control** support*
-- To use ECDSA attestation, you must install Intel(R) Software Guard Extensions Driver for Data Center Attestation Primitives (Intel(R) SGX DCAP).
-Please follow the [Intel(R) SGX DCAP Installation Guide for Linux* OS](https://download.01.org/intel-sgx/latest/dcap-latest/linux/docs/Intel_SGX_SW_Installation_Guide_for_Linux.pdf) to install the Intel(R) SGX DCAP driver.
-
-**NOTE**: If you had already installed Intel(R) SGX driver without ECDSA attestation, please uninstall the driver firstly and then install the Intel(R) SGX DCAP driver. Otherwise the newly installed Intel(R) SGX DCAP driver will be unworkable.
 
 - Install Quote Provider Library(QPL). You can use your own customized QPL or use default QPL provided by Intel(libsgx-dcap-default-qpl)
 

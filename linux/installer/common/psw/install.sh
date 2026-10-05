@@ -41,7 +41,6 @@ AESM_PATH=$PSW_DST_PATH/aesm
 
 # Install the AESM service
 mkdir -p /var/opt/aesmd
-cp -rf $AESM_PATH/data /var/opt/aesmd/
 rm -rf $AESM_PATH/data
 cp -rf $AESM_PATH/conf/aesmd.conf /etc/aesmd.conf
 rm -rf $AESM_PATH/conf
@@ -185,14 +184,10 @@ rm -fr /var/run/aesmd
 rm -f /usr/{lib,lib64}/libsgx_uae_service.so
 rm -f /usr/{lib,lib64}/libsgx_urts.so
 rm -f /usr/{lib,lib64}/libsgx_enclave_common.so*
-rm -f /usr/{lib,lib64}/libsgx_epid.so*
-rm -f /usr/{lib,lib64}/libsgx_launch.so*
 rm -f /usr/{lib,lib64}/libsgx_quote_ex.so*
 rm -f /usr/lib/i386-linux-gnu/libsgx_uae_service.so
 rm -f /usr/lib/i386-linux-gnu/libsgx_urts.so
 rm -f /usr/lib/i386-linux-gnu/libsgx_enclave_common.so*
-rm -f /usr/lib/i386-linux-gnu/libsgx_epid.so*
-rm -f /usr/lib/i386-linux-gnu/libsgx_launch.so*
 rm -f /usr/lib/i386-linux-gnu/libsgx_quote_ex.so*
 
 # Removing the assistance scripts

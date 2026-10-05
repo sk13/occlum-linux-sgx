@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright(c) 2011-2025 Intel Corporation
+# Copyright(c) 2011-2026 Intel Corporation
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -50,8 +50,8 @@ mount_dir="/linux-sgx"
 sdk_installer=""
 sgx_src=""
 
-default_sdk_installer=sgx_linux_x64_sdk_reproducible_2.27.100.0.bin
-default_sdk_installer_url=https://download.01.org/intel-sgx/sgx-linux/2.27/distro/nix_reproducibility/$default_sdk_installer
+default_sdk_installer=sgx_linux_x64_sdk_reproducible_2.28.100.0.bin
+default_sdk_installer_url=https://download.01.org/intel-sgx/sgx-linux/2.28/distro/nix_reproducibility/$default_sdk_installer
 
 
 usage()
@@ -152,7 +152,7 @@ prepare_sgx_src()
     if [ "$sgx_src" != "" ]; then
         mkdir -p "$sgx_repo" && cp -a "$sgx_src/." "$sgx_repo"
     else
-        git clone -b sgx_2.27_reproducible https://github.com/intel/linux-sgx.git $sgx_repo
+        git clone -b sgx_2.28_reproducible https://github.com/intel/confidential-computing.sgx.git $sgx_repo
     fi
 
     cd "$sgx_repo" && make preparation
@@ -225,16 +225,28 @@ if [ $? != 0 ]; then
               --build-arg http_proxy=$http_proxy -f $script_dir/Dockerfile .
 fi
 
+# WAMR cleanup: `version.h` is an auto-generated file (via CMake's `configure_file()` which is committed to the 3rd party repo and not cleaned up by its `clean` target.
+# Deleting it ahead of build, so that subsequent container operations running on the bind-mounted tree, possibly with a different UID, do not encounter permission issues unlinking/replacing this file.
+rm -f "${sgx_repo}/external/dcap_source/external/wasm-micro-runtime/core/version.h"
+
 # Allow 'w' permission for other users to the code_dir in case the uid in the container
 # is different from the host uid.
 chmod -R o+w $code_dir
 
-if [ $type_flag = 0 ]; then
-    docker run -v $code_dir:$mount_dir -it --network none --rm sgx.build.env
-else
-    docker run -v $code_dir:$mount_dir -it --network none --rm sgx.build.env /bin/bash -c $mount_dir/cmd.sh
+# Choose whether to allocate a pseudo-TTY for `docker run`.
+# - Interactive terminal runs should use `-it` for a good UX.
+# - Non-interactive environments (CI, nohup, stdout/stderr redirected to a file, cron)
+#   do not have a TTY, and `docker run -t` will fail with:
+#     "the input device is not a TTY"
+DOCKER_RUN_ARGS=()
+if [ -t 0 ] && [ -t 1 ]; then
+  DOCKER_RUN_ARGS+=(-it)
 fi
 
+DOCKER_CMD=(docker run "${DOCKER_RUN_ARGS[@]}" -v "$code_dir:$mount_dir" --network none --rm sgx.build.env)
 
-
-
+if [ $type_flag = 0 ]; then
+  "${DOCKER_CMD[@]}"
+else
+  "${DOCKER_CMD[@]}" /bin/bash -c "$mount_dir/cmd.sh"
+fi

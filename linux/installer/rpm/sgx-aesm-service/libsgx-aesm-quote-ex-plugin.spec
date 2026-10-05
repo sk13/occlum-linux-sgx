@@ -13,7 +13,6 @@ Release:        1%{?dist}
 Summary:        Unified Quote Plugin for Intel(R) Software Guard Extensions AESM Service
 Group:          Development/System
 Requires:       sgx-aesm-service >= %{version}-%{release} libsgx-aesm-ecdsa-plugin >= %{version}-%{release}
-Recommends:     libsgx-aesm-epid-plugin >= %{version}-%{release}
 
 License:        BSD License
 URL:            https://github.com/intel/linux-sgx

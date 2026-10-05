@@ -48,28 +48,6 @@ class AESMLogicWrapper :public IAESMLogic {
 
         void service_stop();
 
-        virtual aesm_error_t getLaunchToken(const uint8_t *measurement,
-                uint32_t        measurement_size,
-                const uint8_t   *public_key,
-                uint32_t        public_key_size,
-                const uint8_t   *se_attributes,
-                uint32_t        se_attributes_size,
-                uint8_t         **launch_token,
-                uint32_t        *launch_token_size);
-
-        virtual aesm_error_t initQuote(uint8_t** target_info,
-                uint32_t* target_info_length,
-                uint8_t** gid,
-                uint32_t* gid_length);
-
-        virtual aesm_error_t getQuote(uint32_t reportLength, const uint8_t* report,
-                uint32_t quoteType,
-                uint32_t spidLength, const uint8_t* spid,
-                uint32_t nonceLength, const uint8_t* nonce,
-                uint32_t sig_rlLength, const uint8_t* sig_rl,
-                uint32_t bufferSize, uint8_t** quote,
-                bool b_qe_report, uint32_t* qe_reportSize, uint8_t** qe_report);
-
         virtual aesm_error_t select_att_key_id(uint32_t att_key_id_list_size,
                 const uint8_t *att_key_id_list,
                 uint32_t *select_att_key_id_size,
@@ -89,20 +67,6 @@ class AESMLogicWrapper :public IAESMLogic {
                 uint32_t att_key_id_size, const uint8_t *att_key_id,
                 uint32_t qe_report_info_size, uint8_t *qe_report_info,
                 uint32_t quote_size, uint8_t **quote);
-
-        virtual aesm_error_t reportAttestationStatus(uint8_t* platform_info, uint32_t platform_info_size,
-                uint32_t attestation_error_code,
-                uint8_t** update_info, uint32_t update_info_size);
-        virtual aesm_error_t checkUpdateStatus(uint8_t* platform_info, uint32_t platform_info_size,
-                uint8_t** update_info, uint32_t update_info_size,
-                uint32_t config, uint32_t* status);
-        virtual aesm_error_t getWhiteListSize(uint32_t* white_list_size);
-        virtual aesm_error_t getWhiteList(uint8_t** white_list, uint32_t mWhiteListSize);
-        virtual aesm_error_t sgxGetExtendedEpidGroupId(uint32_t* x_group_id);
-        virtual aesm_error_t sgxSwitchExtendedEpidGroup(uint32_t x_group_id);
-
-        typedef enum _sgx_register_type_t {SGX_REGISTER_WHITE_LIST_CERT} sgx_register_type_t;
-        virtual aesm_error_t sgxRegister(uint8_t* buf, uint32_t buf_size, uint32_t data_type);
 
         virtual aesm_error_t get_supported_att_key_id_num(uint32_t *att_key_id_num);
         virtual aesm_error_t get_supported_att_key_ids(uint8_t **att_key_ids, uint32_t att_key_ids_size);

@@ -31,9 +31,7 @@
 
 #ifndef __AESM_QUOTING_TYPE_H__
 #define __AESM_QUOTING_TYPE_H__
-#define AESM_QUOTING_TYPE_ECDSA256 2 // Should has same value as SGX_QL_ALG_ECDSA_P256
-#define AESM_QUOTING_TYPE_EPID_LINKABLE 1 // Should have same value as SGX_QL_ALG_RESERVED_1
-#define AESM_QUOTING_TYPE_EPID_UNLINKABLE 0 // Should have same value as SGX_QL_ALG_EPID
+#define AESM_QUOTING_TYPE_ECDSA256 0 // There is only one entry in quoting_type_name list now
 
 #define AESM_QUOTING_DEFAULT_VALUE AESM_QUOTING_TYPE_ECDSA256
 #endif

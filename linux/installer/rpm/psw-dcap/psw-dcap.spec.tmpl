@@ -69,20 +69,6 @@ BuildRequires:  nasm
 %description
 Intel(R) Software Guard Extensions AESM Service
 
-%package -n libsgx-ae-epid
-Version:       %{_psw_version}
-Summary:       Intel(R) Software Guard Extensions QE and PvE
-
-%description -n libsgx-ae-epid
-Intel(R) Software Guard Extensions QE and PvE
-
-%package -n libsgx-ae-le
-Version:       %{_psw_version}
-Summary:       Intel(R) Software Guard Extensions LE
-
-%description -n libsgx-ae-le
-Intel(R) Software Guard Extensions LE
-
 %package -n libsgx-ae-pce
 Version:       %{_psw_version}
 Summary:       Intel(R) Software Guard Extensions PCE
@@ -98,22 +84,6 @@ Requires:      %{name} >= %{version}-%{release} libsgx-qe3-logic >= %{_dcap_vers
 %description -n libsgx-aesm-ecdsa-plugin
 ECDSA Quote Plugin for Intel(R) Software Guard Extensions AESM Service
 
-%package -n libsgx-aesm-epid-plugin
-Version:       %{_psw_version}
-Summary:       EPID Quote Plugin for Intel(R) Software Guard Extensions AESM Service
-Requires:      %{name} >= %{version}-%{release} libsgx-ae-epid >= %{version}-%{release} libsgx-aesm-pce-plugin >= %{version}-%{release}
-
-%description -n libsgx-aesm-epid-plugin
-EPID Quote Plugin for Intel(R) Software Guard Extensions AESM Service
-
-%package -n libsgx-aesm-launch-plugin
-Version:       %{_psw_version}
-Summary:       Launch Plugin for Intel(R) Software Guard Extensions AESM Service
-Requires:      %{name} >= %{version}-%{release} libsgx-ae-le >= %{version}-%{release}
-
-%description -n libsgx-aesm-launch-plugin
-Launch Plugin for Intel(R) Software Guard Extensions AESM Service
-
 %package -n libsgx-aesm-pce-plugin
 Version:       %{_psw_version}
 Summary:       PCE Plugin for Intel(R) Software Guard Extensions AESM Service
@@ -126,42 +96,9 @@ PCE Plugin for Intel(R) Software Guard Extensions AESM Service
 Version:       %{_psw_version}
 Summary:       Unified Quote Plugin for Intel(R) Software Guard Extensions AESM Service
 Requires:      %{name} >= %{version}-%{release} libsgx-aesm-ecdsa-plugin >= %{version}-%{release}
-Recommends:    libsgx-aesm-epid-plugin >= %{version}-%{release}
 
 %description -n libsgx-aesm-quote-ex-plugin
 Unified Quote Plugin for Intel(R) Software Guard Extensions AESM Service
-
-%package -n libsgx-epid
-Version:       %{_psw_version}
-Summary:       Intel(R) Software Guard Extensions EPID Quote Service
-Recommends:    libsgx-aesm-epid-plugin >= %{version}-%{release}
-
-%description -n libsgx-epid
-Intel(R) Software Guard Extensions EPID Quote Service
-
-%package -n libsgx-epid-devel
-Version:       %{_psw_version}
-Summary:       Intel(R) Software Guard Extensions EPID Quote Service for Developers
-Requires:      libsgx-epid = %{version}-%{release} libsgx-headers >= %{version}-%{release}
-
-%description -n libsgx-epid-devel
-Intel(R) Software Guard Extensions EPID Quote Service for Developers
-
-%package -n libsgx-launch
-Version:       %{_psw_version}
-Summary:       Intel(R) Software Guard Extensions Launch Service
-Recommends:    libsgx-aesm-launch-plugin >= %{version}-%{release}
-
-%description -n libsgx-launch
-Intel(R) Software Guard Extensions Launch Service
-
-%package -n libsgx-launch-devel
-Version:       %{_psw_version}
-Summary:       Intel(R) Software Guard Extensions Launch Service for Developers
-Requires:      libsgx-launch = %{version}-%{release} libsgx-headers >= %{version}-%{release}
-
-%description -n libsgx-launch-devel
-Intel(R) Software Guard Extensions Launch Service for Developers
 
 %package -n libsgx-quote-ex
 Version:       %{_psw_version}
@@ -197,7 +134,7 @@ Intel(R) Software Guard Extensions uRTS
 %package -n libsgx-uae-service
 Version:       %{_psw_version}
 Summary:       Intel(R) Software Guard Extensions Untrusted AE Service
-Requires:      libsgx-epid >= %{version}-%{release} libsgx-launch >= %{version}-%{release} libsgx-quote-ex >= %{version}-%{release}
+Requires:      libsgx-quote-ex >= %{version}-%{release}
 
 %description -n libsgx-uae-service
 Intel(R) Software Guard Extensions Untrusted AE Service
@@ -205,7 +142,6 @@ Intel(R) Software Guard Extensions Untrusted AE Service
 %package -n libsgx-enclave-common
 Version:       %{_psw_version}
 Summary:       Intel(R) Software Guard Extensions Enclave Common Loader
-Recommends:    libsgx-launch >= %{version}-%{release}
 
 %description -n libsgx-enclave-common
 Intel(R) Software Guard Extensions Enclave Common Loader
@@ -403,18 +339,10 @@ rm -fr %{?buildroot}/license
 make clean
 
 %files -f %{_specdir}/list-%{name}
-%files -n libsgx-ae-epid -f %{_specdir}/list-libsgx-ae-epid
-%files -n libsgx-ae-le -f %{_specdir}/list-libsgx-ae-le
 %files -n libsgx-ae-pce -f %{_specdir}/list-libsgx-ae-pce
 %files -n libsgx-aesm-ecdsa-plugin -f %{_specdir}/list-libsgx-aesm-ecdsa-plugin
-%files -n libsgx-aesm-epid-plugin -f %{_specdir}/list-libsgx-aesm-epid-plugin
-%files -n libsgx-aesm-launch-plugin -f %{_specdir}/list-libsgx-aesm-launch-plugin
 %files -n libsgx-aesm-pce-plugin -f %{_specdir}/list-libsgx-aesm-pce-plugin
 %files -n libsgx-aesm-quote-ex-plugin -f %{_specdir}/list-libsgx-aesm-quote-ex-plugin
-%files -n libsgx-epid -f %{_specdir}/list-libsgx-epid
-%files -n libsgx-epid-devel -f %{_specdir}/list-libsgx-epid-devel
-%files -n libsgx-launch -f %{_specdir}/list-libsgx-launch
-%files -n libsgx-launch-devel -f %{_specdir}/list-libsgx-launch-devel
 %files -n libsgx-quote-ex -f %{_specdir}/list-libsgx-quote-ex
 %files -n libsgx-quote-ex-devel -f %{_specdir}/list-libsgx-quote-ex-devel
 %files -n libsgx-headers -f %{_specdir}/list-libsgx-headers

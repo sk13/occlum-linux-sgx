@@ -40,7 +40,6 @@ target_include_directories(${bundle} PRIVATE
 	${PROJECT_SOURCE_DIR}/../../../../common/inc/internal
 	${PROJECT_SOURCE_DIR}/../../inc
 	${PROJECT_SOURCE_DIR}/../../inc/internal
-	${PROJECT_SOURCE_DIR}/../../../../external/epid-sdk
 )
 
 target_link_libraries(${bundle} oal utils)

@@ -230,22 +230,6 @@ ae_error_t aesm_get_pathname(aesm_data_type_t type, aesm_data_id_t id, char *buf
             return AE_FAILURE;
         }
         return aesm_get_data_path(info->name, buf, buf_size);
-    }
-    else if (info->loc == AESM_LOCATION_MULTI_EXTENDED_EPID_GROUP_DATA){
-        char name[MAX_PATH];
-        ae_error_t ae_err;
-        if (xgid == INVALID_EGID){//INVALID_EGID should not be used for file to support multi extended_epid_group
-            return AE_FAILURE;
-        }
-        if(strnlen(info->name,MAX_PATH)>=MAX_PATH-UPBOUND_OF_FORMAT){
-            return AE_FAILURE;//defense in depth. info->name is a constant string and its size should be small
-        }
-        if ((num_bytes=snprintf(name, MAX_PATH, "%s.%08X", info->name, xgid)) < 0|| num_bytes>=MAX_PATH){
-            return AE_FAILURE;
-        }
-        if ((ae_err = aesm_get_data_path(name, buf, buf_size)) != AE_SUCCESS)
-            return ae_err;
-        return AE_SUCCESS;
     }else{//info->loc == AESM_LOCATION_EXE_FOLDER
         if (xgid != INVALID_EGID){
             return AE_FAILURE;

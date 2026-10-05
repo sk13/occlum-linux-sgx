@@ -48,7 +48,7 @@ volatile bool reload = false;
 // Each bit indicates a certain type of attestation is supported. 
 // If a attestation type is marked as supported but AESM fails to load the corresponding module,
 // AESM will exit. 
-// Currently only two attestation types can be supported: Bit 0: EPID  Bit 1: ECDSA
+// Currently only one attestation type can be supported: Bit 1: ECDSA
 uint16_t supported_attestation_types = 0;
 
 void signal_handler(int sig)
@@ -75,7 +75,7 @@ void signal_handler(int sig)
 }
 
 void print_usage() {
-    printf("Usage: aesm_service [--no-daemon] [--no-syslog] [--supported_attestation_types=[EPID][,ECDSA]]\n");
+    printf("Usage: aesm_service [--no-daemon] [--no-syslog] [--supported_attestation_types=[ECDSA]]\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -103,10 +103,7 @@ int main(int argc, char *argv[]) {
                 if (optarg) {
                     char * token = strtok(optarg, ",");
                     while( token != NULL ) {
-                        if (strcasecmp(token, "epid") == 0) {
-                            supported_attestation_types |= ATTESTATION_TYPE_EPID;
-                        }
-                        else if (strcasecmp(token, "ecdsa") == 0) {
+                        if (strcasecmp(token, "ecdsa") == 0) {
                             supported_attestation_types |= ATTESTATION_TYPE_ECDSA;
                         }
                         else {

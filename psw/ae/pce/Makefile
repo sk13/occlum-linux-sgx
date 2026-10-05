@@ -41,7 +41,6 @@ AENAME = pce
 INCLUDE += -I$(LINUX_PSW_DIR)/ae/data/constants/linux 
 
 INCLUDE += -I$(SGX_HEADER_DIR)/libcxx                      \
-           -I$(EPID_SDK_DIR)                              \
            -I$(LINUX_PSW_DIR)/ae/common                   \
            -I$(LINUX_PSW_DIR)/ae/inc/internal             
 
