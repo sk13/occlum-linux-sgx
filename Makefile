@@ -50,14 +50,19 @@ tips:
 preparation:
 # As SDK build needs to clone and patch openmp, we cannot support the mode that download the source from github as zip.
 # Only enable the download from git
-	git submodule update --init --recursive
+# Occlum: fetch only the commits that are pinned (--depth 1) and only the submodules that the SDK
+# needs. Not the nested ones of libcbor, protobuf (except abseil) and DCAP, i.e., not PCCS, WAMR and
+# googletest of DCAP: that is 10 instead of 16 clones and a fraction of the history from GitHub, which
+# refuses anonymous clients after too many requests ("could not read Username").
+	git submodule update --init --depth 1
+	git -C external/dcap_source submodule update --init --depth 1 QuoteVerification/QVL external/jwt-cpp
 	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
 	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
 	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	cd external/openmp/openmp_code && git apply ../0001-Enable-OpenMP-in-SGX.patch >/dev/null 2>&1 ||  git apply ../0001-Enable-OpenMP-in-SGX.patch --check -R
 	cd external/protobuf/protobuf_code && git apply ../sgx_protobuf.patch >/dev/null 2>&1 ||  git apply ../sgx_protobuf.patch --check -R
 	cd external/protobuf/protobuf_code && git apply ../0001-bumped-protobuf-to-1.33.0.patch >/dev/null 2>&1 ||  git apply ../0001-bumped-protobuf-to-1.33.0.patch --check -R
-	cd external/protobuf/protobuf_code && git submodule update --init --recursive && cd third_party/abseil-cpp && git apply ../../../sgx_abseil.patch>/dev/null 2>&1 || git apply ../../../sgx_abseil.patch --check -R
+	cd external/protobuf/protobuf_code && git submodule update --init --depth 1 third_party/abseil-cpp && cd third_party/abseil-cpp && git apply ../../../sgx_abseil.patch>/dev/null 2>&1 || git apply ../../../sgx_abseil.patch --check -R
 	./external/sgx-emm/create_symlink.sh
 	cd external/cbor && cp -r libcbor sgx_libcbor
 	cd external/cbor/libcbor && git apply ../raw_cbor.patch >/dev/null 2>&1 || git apply ../raw_cbor.patch --check -R
