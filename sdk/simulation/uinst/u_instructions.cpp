@@ -603,6 +603,7 @@ void _SE3(uintptr_t xax, uintptr_t xbx,
                 - sizeof(ssa_gpr_t));
 
         save_xregs((char*)((size_t)p_ssa_gpr + sizeof(ssa_gpr_t) - secs->ssa_frame_size * SE_PAGE_SIZE));
+
         regs.xax = p_ssa_gpr->REG(ax);
         regs.xbx = p_ssa_gpr->REG(bx);
         regs.xdx = p_ssa_gpr->REG(dx);

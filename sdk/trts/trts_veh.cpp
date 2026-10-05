@@ -56,6 +56,7 @@
 #include "sgx_mm_rt_abstraction.h"
 #include "sgx_trts_aex.h"
 #include "sgx_interrupt.h"
+#include "ctd.h"
 
 #include "se_memcpy.h"
 
@@ -196,8 +197,6 @@ int sgx_unregister_exception_handler(void *handler)
     return status;
 }
 
-extern "C" __attribute__((regparm(1))) void second_phase(void *info,
-    void *new_sp, void *second_phase_handler_addr);
 extern "C" __attribute__((regparm(1))) void writefsbase(uint64_t val);
 static bool is_standard_exception(uintptr_t);
 static bool is_occlum_user_space_exception(sgx_exception_info_t *info);
@@ -207,19 +206,35 @@ static bool is_occlum_user_space_exception(sgx_exception_info_t *info);
 extern "C" __attribute__((regparm(1))) void continue_execution(sgx_exception_info_t *info);
 extern "C" void restore_xregs(uint8_t *buf);
 
-extern "C" void constant_time_apply_sgxstep_mitigation_and_continue_execution(sgx_exception_info_t *info,
-        uintptr_t ssa_aexnotify_addr, uintptr_t stack_tickle_pages, uintptr_t code_tickle_page, uintptr_t data_tickle_page, uintptr_t c3_byte_address);
+#ifndef SE_SIM
+extern "C" __attribute__((regparm(1))) void second_phase(sgx_exception_info_t *info, 
+    void *new_sp, void *second_phase_handler_addr);
 
+extern "C" void constant_time_apply_sgxstep_mitigation_and_continue_execution(sgx_exception_info_t *info,
+        uintptr_t ssa_aexnotify_addr, uintptr_t stack_tickle_pages, uintptr_t code_tickle_page, uintptr_t data_tickle_address, uintptr_t c3_byte_address);
+
+// constant time select based on given condition
+static inline uint64_t cselect64(uint64_t pred, const uint64_t expected, uint64_t old_val, uint64_t new_val)
+{
+    __asm__("cmp %3, %1\n\t"
+            "cmove %2, %0"
+            : "+rm"(new_val)
+            : "rm"(pred), "rm"(old_val), "ri"(expected));
+    return new_val;
+}
 
 // apply the constant time mitigation handler
 static void apply_constant_time_sgxstep_mitigation_and_continue_execution(sgx_exception_info_t *info)
 {
     thread_data_t *thread_data = get_thread_data();
-    uintptr_t code_tickle_page, c3_byte_address, stack_tickle_pages, data_tickle_page,
+    int ct_result;
+    uint64_t data_address;
+    uintptr_t code_tickle_page, c3_byte_address, stack_tickle_pages, data_tickle_address,
               stack_base_page = ((thread_data->stack_base_addr & ~0xFFF) == 0) ?
                   (thread_data->stack_base_addr) - 0x1000 :
                   (thread_data->stack_base_addr & ~0xFFF),
               stack_limit_page = thread_data->stack_limit_addr & ~0xFFF;
+    int data_tickle_address_is_within_enclave;
 
     // Determine which stack pages can be tickled
     if (((uintptr_t)info & ~0xFFF) == stack_base_page) {
@@ -240,11 +255,6 @@ static void apply_constant_time_sgxstep_mitigation_and_continue_execution(sgx_ex
         stack_tickle_pages = (((uintptr_t)info & ~0xFFF) + 0x1000) | 1;
     }
 
-    // Determine which data page can be tickled.
-    // FIXME: This will eventually call the CTD to obtain the page. For
-    // now, we redundantly tickle a stack page.
-    data_tickle_page = stack_tickle_pages & ~1;
-
     // Look up the code page in the c3 cache
     code_tickle_page = info->cpu_context.REG(ip) & ~0xFFF;
     c3_byte_address = code_tickle_page + *(aex_notify_c3_cache + ((code_tickle_page >> 12) & 0x07FF));
@@ -259,6 +269,29 @@ static void apply_constant_time_sgxstep_mitigation_and_continue_execution(sgx_ex
                 (uint16_t)(c3_byte_address & 0xFFF);
         }
     }
+
+    ct_result = ct_decode(&info->cpu_context, &data_address);
+
+    data_tickle_address = stack_tickle_pages & ~0x1;
+    data_tickle_address = cselect64(ct_result, 1, data_address, data_tickle_address);
+    data_tickle_address = cselect64(ct_result, 2, data_address, data_tickle_address);
+    data_tickle_address_is_within_enclave =
+		sgx_is_within_enclave((void*) data_tickle_address, sizeof(uint8_t));
+
+    /*
+     * Ensure the tickle page dereferenced by the mitigation lies _inside_ the enclave.
+     *
+     * NOTE:
+     *  - Unguarded user memory accesses can leak through MMIO stale data.
+     *  - User memory accesses are detectable and single-steppable anyway.
+     *  - Below non-cst time check can only ever be false when the next enclave
+     *    instruction will dereference user memory (trivially known to attacker).
+     */
+    data_tickle_address = data_tickle_address_is_within_enclave ?
+                          data_tickle_address : stack_tickle_pages & ~0x1;
+
+    code_tickle_page = cselect64(ct_result, 2, code_tickle_page | 0x1, code_tickle_page);
+    code_tickle_page = cselect64(data_tickle_address_is_within_enclave, 1, code_tickle_page, code_tickle_page & ~0x1);
 
     // Pop an entropy byte from the entropy cache
     if (--thread_data->aex_notify_entropy_remaining < 0) {
@@ -284,12 +317,11 @@ static void apply_constant_time_sgxstep_mitigation_and_continue_execution(sgx_ex
     constant_time_apply_sgxstep_mitigation_and_continue_execution(
                     info, thread_data->first_ssa_gpr + offsetof(ssa_gpr_t, aex_notify),
                     stack_tickle_pages, code_tickle_page,
-                    data_tickle_page, c3_byte_address);
+                    data_tickle_address, c3_byte_address);
 }
+#endif
 
 //      the 2nd phrase exception handing, which traverse registered exception handlers.
-//      if the exception can be handled, then continue execution
-//      otherwise, throw abortion, go back to 1st phrase, and call the default handler.
 //      if the exception can be handled, then continue execution
 //      otherwise, throw abortion, go back to 1st phrase, and call the default handler.
 extern "C" __attribute__((regparm(1))) void internal_handle_exception(sgx_exception_info_t *info)
@@ -309,11 +341,12 @@ extern "C" __attribute__((regparm(1))) void internal_handle_exception(sgx_except
     if (info == NULL) {
         goto failed_end;
     }
-    else if (info->exception_valid == 0) {
+
+    memcpy_s(info->xsave_area, info->xsave_size, xsave_in_ssa, info->xsave_size);
+
+    if (info->exception_valid == 0) {
         goto exception_handling_end;
     }
-   
-    memcpy_s(info->xsave_area, info->xsave_size, xsave_in_ssa, info->xsave_size);
 
     if (thread_data->exception_flag < 0)
         goto failed_end;
@@ -420,6 +453,7 @@ extern "C" __attribute__((regparm(1))) void internal_handle_exception(sgx_except
     }
 
 exception_handling_end:
+#ifndef SE_SIM
     //instruction triggering the exception will be executed again.
     if(info->do_aex_mitigation == 1)
     {
@@ -430,6 +464,7 @@ exception_handling_end:
         apply_constant_time_sgxstep_mitigation_and_continue_execution(info);
     }
     else
+#endif
     {
         //instruction triggering the exception will be executed again.
         restore_xregs(info->xsave_area);
@@ -471,7 +506,6 @@ extern "C" sgx_status_t trts_handle_exception(void *tcs, outside_exitinfo_t *u_o
     uintptr_t pkru_base = 0;
     uint32_t *pkru_ptr = NULL;
     size_t size = 0;
-    uint8_t *ssa_xsave = NULL;
     bool is_exception_handled = false;
     bool standard_exception = true;
 
@@ -569,33 +603,32 @@ extern "C" sgx_status_t trts_handle_exception(void *tcs, outside_exitinfo_t *u_o
         return SGX_ERROR_STACK_OVERRUN;
     }
 
-    if(ssa_gpr->exit_info.valid == 1)
+    /* try to allocate memory dynamically */
+    if((size_t)sp < thread_data->stack_commit_addr)
     {
+        int ret = -1;
+        size_t page_aligned_delta = 0;
         /* try to allocate memory dynamically */
-        if((size_t)sp < thread_data->stack_commit_addr)
-        { 
-            int ret = -1;
-            size_t page_aligned_delta = 0;
-            /* try to allocate memory dynamically */
-            page_aligned_delta = ROUND_TO(thread_data->stack_commit_addr - (size_t)sp, SE_PAGE_SIZE);
-            if ((thread_data->stack_commit_addr > page_aligned_delta)
-                    && ((thread_data->stack_commit_addr - page_aligned_delta) >= thread_data->stack_limit_addr))
-            {
-                ret = expand_stack_by_pages((void *)(thread_data->stack_commit_addr - page_aligned_delta), (page_aligned_delta >> SE_PAGE_SHIFT));
-            }
-            if (ret == 0)
-            {
-                thread_data->stack_commit_addr -= page_aligned_delta;
-                is_exception_handled = true; // The exception has been handled in the 1st phase exception handler
-                goto handler_end;
-            }
-            else
-            {
-                set_enclave_state(ENCLAVE_CRASHED);
-                return SGX_ERROR_STACK_OVERRUN;
-            }
+        page_aligned_delta = ROUND_TO(thread_data->stack_commit_addr - (size_t)sp, SE_PAGE_SIZE);
+        if ((thread_data->stack_commit_addr > page_aligned_delta)
+                && ((thread_data->stack_commit_addr - page_aligned_delta) >= thread_data->stack_limit_addr))
+        {
+            ret = expand_stack_by_pages((void *)(thread_data->stack_commit_addr - page_aligned_delta),
+                                        (page_aligned_delta >> SE_PAGE_SHIFT));
+        }
+        if (ret == 0)
+        {
+            thread_data->stack_commit_addr -= page_aligned_delta;
+            is_exception_handled = true; // The exception has been handled in the 1st phase exception handler
+            goto handler_end;
+        }
+        else
+        {
+            set_enclave_state(ENCLAVE_CRASHED);
+            return SGX_ERROR_STACK_OVERRUN;
         }
     }
+
     if (size_t(&Lereport_inst) == ssa_gpr->REG(ip) && SE_EREPORT == ssa_gpr->REG(ax))
     {
         // Handle the exception raised by EREPORT instruction

@@ -77,14 +77,14 @@ bool protected_fs_file::generate_secure_blob(sgx_aes_gcm_128bit_key_t* key, cons
 
 	// label
 	// SP800-108:
-	// Label - A string that identifies the purpose for the derived keying material, which is encoded as a binary string.
+	// Label - A string that identifies the purpose for the derived keying material, which is encoded as a binary string. 
 	//         The encoding method for the Label is defined in a larger context, for example, in the protocol that uses a KDF.
 	strncpy(buf.label, label, len);
 
 	// context and nonce
-	// SP800-108:
+	// SP800-108: 
 	// Context - A binary string containing the information related to the derived keying material.
-	//           It may include identities of parties who are deriving and / or using the derived keying material and,
+	//           It may include identities of parties who are deriving and / or using the derived keying material and, 
 	//           optionally, a nonce known by the parties who derive the keys.
 	buf.node_number = physical_node_number;
 
@@ -128,14 +128,14 @@ bool protected_fs_file::generate_secure_blob_from_user_kdk(bool restore)
 
 	// label
 	// SP800-108:
-	// Label - A string that identifies the purpose for the derived keying material, which is encoded as a binary string.
+	// Label - A string that identifies the purpose for the derived keying material, which is encoded as a binary string. 
 	//         The encoding method for the Label is defined in a larger context, for example, in the protocol that uses a KDF.
 	strncpy(buf.label, METADATA_KEY_NAME, strlen(METADATA_KEY_NAME));
 
 	// context and nonce
-	// SP800-108:
+	// SP800-108: 
 	// Context - A binary string containing the information related to the derived keying material.
-	//           It may include identities of parties who are deriving and / or using the derived keying material and,
+	//           It may include identities of parties who are deriving and / or using the derived keying material and, 
 	//           optionally, a nonce known by the parties who derive the keys.
 	buf.node_number = 0;
 
@@ -153,7 +153,7 @@ bool protected_fs_file::generate_secure_blob_from_user_kdk(bool restore)
 	{
 		memcpy(&buf.nonce32, &file_meta_data.plain_part.meta_data_key_id, sizeof(sgx_key_id_t));
 	}
-
+	
 
 	// length of output (128 bits)
 	buf.output_len = 0x80;
@@ -184,7 +184,7 @@ bool protected_fs_file::init_session_master_key()
 	}
 
 	sgx_aes_gcm_128bit_key_t empty_key = {0};
-
+		
 	if (generate_secure_blob(&empty_key, MASTER_KEY_NAME, 0, (sgx_aes_gcm_128bit_tag_t*)&session_master_key) == false)
 		return false;
 
@@ -226,10 +226,10 @@ bool protected_fs_file::generate_random_meta_data_key()
 		return generate_secure_blob_from_user_kdk(false);
 	}
 
-	// derive a random key from the enclave sealing key
+	// derive a random key from the enclave sealing key	
 	sgx_key_request_t key_request;
-	memset(&key_request, 0, sizeof(sgx_key_request_t));
-
+	memset(&key_request, 0, sizeof(sgx_key_request_t)); 
+		
 	key_request.key_name = SGX_KEYSELECT_SEAL;
 	key_request.key_policy = SGX_KEYPOLICY_MRSIGNER;
 
@@ -240,14 +240,14 @@ bool protected_fs_file::generate_random_meta_data_key()
     key_request.attribute_mask.xfrm = 0x0;
 
 	key_request.misc_mask = TSEAL_DEFAULT_MISCMASK;
-
+		
 	sgx_status_t status = sgx_read_rand((unsigned char*)&key_request.key_id, sizeof(sgx_key_id_t));
 	if (status != SGX_SUCCESS)
 	{
 		last_error = status;
 		return false;
 	}
-
+	
 	status = sgx_get_key(&key_request, &cur_key);
 	if (status != SGX_SUCCESS)
 	{
@@ -272,7 +272,7 @@ bool protected_fs_file::restore_current_meta_data_key(const sgx_aes_gcm_128bit_k
 	}
 
 	if (import_key != NULL)
-	{
+	{		
 		memcpy(&cur_key, import_key, sizeof(sgx_aes_gcm_128bit_key_t));
 		return true;
 	}

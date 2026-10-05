@@ -66,7 +66,7 @@ typedef struct _meta_data_plain
 	sgx_attributes_t attribute_mask;
 
 	sgx_aes_gcm_128bit_tag_t meta_data_gmac;
-
+	
 	uint8_t          update_flag;
 	uint8_t          integrity_only;
 } meta_data_plain_t;

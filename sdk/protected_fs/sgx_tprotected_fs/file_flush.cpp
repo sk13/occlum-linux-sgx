@@ -30,6 +30,7 @@
  */
 
 #include <vector>
+#include <pthread.h>
 #include "sgx_tprotected_fs.h"
 #include "sgx_tprotected_fs_t.h"
 #include "protected_fs_file.h"
@@ -37,6 +38,36 @@
 
 
 #include <sgx_trts.h>
+
+// Encrypts (or, in integrity-only mode, just authenticates) one NODE_SIZE node of the file.
+// The result is built in a local buffer first and only then copied to the (untrusted) file mapping.
+static sgx_status_t protect_node(bool integrity_only, const sgx_aes_gcm_128bit_key_t* key, const uint8_t* plain,
+                                 uint8_t* file_node_addr, const uint8_t* iv, sgx_aes_gcm_128bit_tag_t* gmac)
+{
+	uint8_t temp_node[NODE_SIZE] = { 0 };
+	sgx_status_t status;
+
+	if (!integrity_only)
+	{
+		// encrypt the data, this also saves the gmac of the operation in the mht crypto node
+		status = sgx_rijndael128GCM_encrypt(key, plain, NODE_SIZE, temp_node,
+											iv, SGX_AESGCM_IV_SIZE, NULL, 0, gmac);
+	}
+	else
+	{
+		// integrity-only: the node stays in plaintext and only its GMAC is computed
+		status = sgx_rijndael128GCM_encrypt(key, NULL, 0, NULL,
+											iv, SGX_AESGCM_IV_SIZE, plain, NODE_SIZE, gmac);
+		if (status == SGX_SUCCESS)
+			memcpy(temp_node, plain, NODE_SIZE);
+	}
+
+	if (status == SGX_SUCCESS)
+		memcpy(file_node_addr, temp_node, NODE_SIZE);
+	memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
+
+	return status;
+}
 
 bool protected_fs_file::flush()
 {
@@ -185,13 +216,165 @@ bool mht_order(const file_mht_node_t* first, const file_mht_node_t* second)
 	return first->mht_node_number > second->mht_node_number;
 }
 
+
+// 1. encrypt the changed data
+// 2. set the IV+GMAC in the parent MHT
+// [3. set the need_writing flag for all the parents]
+void* update_data_nodes(void* thread_input)
+{
+	thread_input_t* input = (thread_input_t*)thread_input;
+	uint8_t* addr = input->addr;
+	uint8_t* empty_iv = input->empty_iv;
+	thread_queue_t* que_elm;
+	file_data_node_t* data_node;
+	file_mht_node_t* mht_node;
+	gcm_crypto_data_t* gcm_crypto_data;
+	uint8_t* file_data_node_addr;
+	sgx_status_t status;
+
+	while (true)
+	{
+		if (input->queue->empty())
+			return NULL;
+		que_elm = input->queue->front();
+		input->queue->pop();
+
+		data_node = (file_data_node_t*)que_elm->node;
+		gcm_crypto_data = &data_node->parent->plain.data_nodes_crypto[data_node->data_node_number % ATTACHED_DATA_NODES_COUNT];
+		file_data_node_addr = addr + NODE_SIZE * data_node->physical_node_number;
+
+		// encrypt the data, this also saves the gmac of the operation in the mht crypto node
+		status = protect_node(input->integrity_only, &que_elm->key, data_node->plain.data, file_data_node_addr,
+							  empty_iv, &gcm_crypto_data->gmac);
+		if (status != SGX_SUCCESS)
+		{
+			input->error = status;
+			memset_s(que_elm->key, sizeof(sgx_aes_gcm_128bit_key_t), 0, sizeof(sgx_aes_gcm_128bit_key_t)); // clear key in memroy
+			delete que_elm;
+			return data_node;
+		}
+
+		memcpy(gcm_crypto_data->key, que_elm->key, sizeof(sgx_aes_gcm_128bit_key_t)); // save the key used for this encryption
+		memset_s(que_elm->key, sizeof(sgx_aes_gcm_128bit_key_t), 0, sizeof(sgx_aes_gcm_128bit_key_t)); // clear key in memroy
+		delete que_elm;
+
+		data_node->need_writing = false;
+		data_node->new_node = false;
+
+		mht_node = data_node->parent;
+		// this loop should do nothing, add it here just to be safe
+		while (mht_node->mht_node_number != 0)
+		{
+			assert(mht_node->need_writing == true);
+			mht_node->need_writing = true; // just in case, for release
+			mht_node = mht_node->parent;
+		}
+	}
+}
+
+
+bool protected_fs_file::multi_thread_update_data_nodes()
+{
+	uint64_t max_tnum = parallel_flush_level - 1;
+	pthread_t threads[max_tnum];
+	thread_input_t thread_inputs[max_tnum];
+	uint32_t tnum = 0;
+	int32_t result32;
+	std::queue<thread_queue_t*> queue[max_tnum];
+	thread_queue_t* queue_element;
+	file_data_node_t* data_node;
+	uint64_t node_cnt = 0;
+
+	// should not happen, for safety purpose
+	assert(last_error == 0);
+	if (last_error)
+		return false;
+
+	// generate all the encryption keys in advance; save each key and data node
+	for (void* node = cache.get_first(); node != NULL; node = cache.get_next())
+	{
+		data_node = (file_data_node_t*)node;
+		if (data_node->type == FILE_DATA_NODE_TYPE) // type is in the same offset in both node types
+		{
+			if (data_node->need_writing == true)
+			{
+				if (derive_random_node_key(data_node->physical_node_number) == false)
+					break;
+				try {
+					queue_element = new thread_queue_t;
+				}
+				catch (std::bad_alloc& e) {
+					(void)e; // remove warning
+					last_error = ENOMEM;
+					break;
+				}
+				queue_element->node = node;
+				memcpy(queue_element->key, cur_key, sizeof(sgx_aes_gcm_128bit_key_t)); // save the key to local for parallel computing
+				queue[node_cnt++ % max_tnum].push(queue_element);
+			}
+		}
+	}
+
+	// if error occurs in key generation or create queue element
+	if (last_error != 0)
+	{
+		for (uint32_t i = 0; i < max_tnum; i++)
+		{
+			while (!queue[i].empty())
+			{
+				memset_s(queue[i].front()->key, sizeof(sgx_aes_gcm_128bit_key_t), 0, sizeof(sgx_aes_gcm_128bit_key_t)); // clear key in memroy
+				delete queue[i].front();
+				queue[i].pop();
+			}
+		}
+		return false;
+	}
+
+	// start threads and record number of threads created
+	for (tnum = 0; tnum < max_tnum && tnum < node_cnt; tnum++)
+	{
+		thread_inputs[tnum] = {0, file_addr, empty_iv, &queue[tnum], integrity_only};
+		result32 = pthread_create(&threads[tnum], NULL, &update_data_nodes, &thread_inputs[tnum]);
+		if (result32 != 0)
+		{
+			last_error = (result32 == EAGAIN) ? SGX_ERROR_OUT_OF_TCS : result32;
+			break;
+		}
+	}
+
+	// wait threads to complete; if error occurs, only record the last thread error
+	for (uint32_t i = 0; i < tnum; i++)
+	{
+		void* res;
+		result32 = pthread_join(threads[i], &res);
+		if (last_error == 0 && (result32 != 0 || res != NULL))
+			last_error = (result32 != 0) ? result32 : thread_inputs[i].error;
+	}
+
+	// in case of error, queue may not be cleared
+	for (uint32_t i = 0; i < tnum; i++)
+	{
+		while (!queue[i].empty())
+		{
+			memset_s(queue[i].front()->key, sizeof(sgx_aes_gcm_128bit_key_t), 0, sizeof(sgx_aes_gcm_128bit_key_t)); // clear key in memroy
+			delete queue[i].front();
+			queue[i].pop();
+		}
+	}
+
+	if (last_error != 0)
+		return false;
+
+	return true;
+}
+
+
 bool protected_fs_file::single_thread_update_data_nodes()
 {
 	gcm_crypto_data_t* gcm_crypto_data;
 	uint8_t* file_data_node_addr;
 	file_data_node_t* data_node;
 	file_mht_node_t* mht_node;
-	uint8_t temp_node[NODE_SIZE] = { 0 };
 	sgx_status_t status;
 	void* data = cache.get_first();
 
@@ -207,37 +390,20 @@ bool protected_fs_file::single_thread_update_data_nodes()
 			if (data_node->need_writing == true)
 			{
 				if (derive_random_node_key(data_node->physical_node_number) == false)
-				{
-					memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 					return false;
-				}
 
 				gcm_crypto_data = &data_node->parent->plain.data_nodes_crypto[data_node->data_node_number % ATTACHED_DATA_NODES_COUNT];
 				file_data_node_addr = file_addr + NODE_SIZE * data_node->physical_node_number;
 
-				if (!integrity_only)
-				{
-					// encrypt the data, this also saves the gmac of the operation in the mht crypto node
-					status = sgx_rijndael128GCM_encrypt(&cur_key, data_node->plain.data, NODE_SIZE, temp_node,
-														empty_iv, SGX_AESGCM_IV_SIZE, NULL, 0, &gcm_crypto_data->gmac);
-				}
-				else
-				{
-					status = sgx_rijndael128GCM_encrypt(&cur_key, NULL, 0, NULL,
-														empty_iv, SGX_AESGCM_IV_SIZE, data_node->plain.data, NODE_SIZE, &gcm_crypto_data->gmac);
-				}
-
+				// encrypt the data, this also saves the gmac of the operation in the mht crypto node
+				status = protect_node(integrity_only, &cur_key, data_node->plain.data, file_data_node_addr,
+									  empty_iv, &gcm_crypto_data->gmac);
 				if (status != SGX_SUCCESS)
 				{
-					memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 					last_error = status;
 					return false;
 				}
 
-				if (!integrity_only)
-					memcpy(file_data_node_addr, temp_node, NODE_SIZE);
-				else
-					memcpy(file_data_node_addr, data_node->plain.data, NODE_SIZE);
 				memcpy(gcm_crypto_data->key, cur_key, sizeof(sgx_aes_gcm_128bit_key_t)); // save the key used for this encryption
 
 				data_node->need_writing = false;
@@ -255,8 +421,6 @@ bool protected_fs_file::single_thread_update_data_nodes()
 		}
 		data = cache.get_next();
 	}
-
-	memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 	return true;
 }
 
@@ -266,7 +430,6 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 	std::list<file_mht_node_t*> mht_list;
 	std::list<file_mht_node_t*>::iterator mht_list_it;
 	file_mht_node_t* file_mht_node;
-	uint8_t temp_node[NODE_SIZE] = { 0 };
 	int32_t result32 = -1;
 	sgx_status_t status;
 	uint64_t max_node_number = 0;
@@ -295,8 +458,16 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 		real_file_size = NODE_SIZE * (max_node_number + 1);
 	}
 
-	if (single_thread_update_data_nodes() == false)
-		return false;
+	if (parallel_flush_level <= 1)
+	{
+		if (single_thread_update_data_nodes() == false)
+			return false;
+	}
+	else
+	{
+		if (multi_thread_update_data_nodes() == false)
+			return false;
+	}
 
 	// add all the mht nodes that needs writing to a list
 	data = cache.get_first();
@@ -327,32 +498,18 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 		if (derive_random_node_key(file_mht_node->physical_node_number) == false)
 		{
 			mht_list.clear();
-			memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 			return false;
 		}
 
-		if (!integrity_only)
-		{
-			status = sgx_rijndael128GCM_encrypt(&cur_key, (const uint8_t*)&file_mht_node->plain, NODE_SIZE, temp_node,
-												empty_iv, SGX_AESGCM_IV_SIZE, NULL, 0, &gcm_crypto_data->gmac);
-		}
-		else
-		{
-			status = sgx_rijndael128GCM_encrypt(&cur_key, NULL ,0, NULL,
-												empty_iv, SGX_AESGCM_IV_SIZE, (const uint8_t*)&file_mht_node->plain, NODE_SIZE, &gcm_crypto_data->gmac);
-		}
+		status = protect_node(integrity_only, &cur_key, (const uint8_t*)&file_mht_node->plain, file_mht_node_addr,
+							  empty_iv, &gcm_crypto_data->gmac);
 		if (status != SGX_SUCCESS)
 		{
 			mht_list.clear();
-			memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 			last_error = status;
 			return false;
 		}
 
-		if (!integrity_only)
-			memcpy(file_mht_node_addr, temp_node, NODE_SIZE);
-		else
-			memcpy(file_mht_node_addr, (const uint8_t*)&file_mht_node->plain, NODE_SIZE);
 		memcpy(gcm_crypto_data->key, cur_key, sizeof(sgx_aes_gcm_128bit_key_t)); // save the key used for this gmac
 
 		file_mht_node->need_writing = false;
@@ -363,38 +520,21 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 
 	// update mht root gmac in the meta data node
 	if (derive_random_node_key(root_mht.physical_node_number) == false)
-	{
-		memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 		return false;
-	}
 
-	if (!integrity_only)
-	{
-		status = sgx_rijndael128GCM_encrypt(&cur_key, (const uint8_t*)&root_mht.plain, NODE_SIZE, temp_node,
-											empty_iv, SGX_AESGCM_IV_SIZE, NULL, 0, &encrypted_part_plain.mht_gmac);
-	}
-	else
-	{
-		status = sgx_rijndael128GCM_encrypt(&cur_key, NULL, 0, NULL,
-											empty_iv, SGX_AESGCM_IV_SIZE, (const uint8_t*)&root_mht.plain, NODE_SIZE, &encrypted_part_plain.mht_gmac);
-	}
+	status = protect_node(integrity_only, &cur_key, (const uint8_t*)&root_mht.plain, file_addr + NODE_SIZE,
+						  empty_iv, &encrypted_part_plain.mht_gmac);
 	if (status != SGX_SUCCESS)
 	{
-		memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 		last_error = status;
 		return false;
 	}
 
-	if (!integrity_only)
-		memcpy(file_addr + NODE_SIZE, temp_node, NODE_SIZE);
-	else
-		memcpy(file_addr + NODE_SIZE, (const uint8_t*)&root_mht.plain, NODE_SIZE);
 	memcpy(&encrypted_part_plain.mht_key, cur_key, sizeof(sgx_aes_gcm_128bit_key_t)); // save the key used for this gmac
 
 	root_mht.need_writing = false;
 	root_mht.new_node = false;
 
-	memset_s(temp_node, NODE_SIZE, 0, NODE_SIZE);
 	return true;
 }
 
@@ -402,14 +542,14 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 bool protected_fs_file::update_meta_data_node()
 {
 	sgx_status_t status;
-
+	
 	// randomize a new key, saves the key _id_ in the meta data plain part
 	if (generate_random_meta_data_key() != true)
 	{
 		// last error already set
 		return false;
 	}
-
+		
 	if (!integrity_only)
 	{
 		// encrypt meta data encrypted part, also updates the gmac in the meta data plain part
@@ -421,6 +561,7 @@ bool protected_fs_file::update_meta_data_node()
 	}
 	else
 	{
+		// integrity-only: keep the meta data in plaintext and only compute its GMAC
 		status = sgx_rijndael128GCM_encrypt(&cur_key,
 											NULL, 0, NULL,
 											empty_iv, SGX_AESGCM_IV_SIZE,
@@ -450,4 +591,14 @@ void protected_fs_file::erase_recovery_file()
 
 	status = u_sgxprotectedfs_remove(&result32, recovery_filename);
 	(void)status; // don't care if it succeeded or failed...just remove the warning
+}
+
+
+int32_t protected_fs_file::set_parallel_flush_level(uint32_t max_threads_number)
+{
+	if (max_threads_number == 0)
+		return 1;
+
+	parallel_flush_level = max_threads_number;
+	return 0;
 }

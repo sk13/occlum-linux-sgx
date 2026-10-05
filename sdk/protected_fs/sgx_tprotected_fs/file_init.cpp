@@ -66,6 +66,7 @@ bool protected_fs_file::cleanup_filename(const char* src, char* dest)
 	return true;
 }
 
+
 protected_fs_file::protected_fs_file(const char* filename, const char* mode, const sgx_aes_gcm_128bit_key_t* import_key, const sgx_aes_gcm_128bit_key_t* kdk_key, bool _integrity_only, const uint32_t cache_page)
 {
 	sgx_status_t status = SGX_SUCCESS;
@@ -107,7 +108,7 @@ protected_fs_file::protected_fs_file(const char* filename, const char* mode, con
 		return;
 	}
 
-	if (init_session_master_key() == false)
+	if (init_session_master_key() == false) 
 		// last_error already set
 		return;
 
@@ -115,16 +116,16 @@ protected_fs_file::protected_fs_file(const char* filename, const char* mode, con
 	{
 		// for new file, this value will later be saved in the meta data plain part (init_new_file)
 		// for existing file, we will later compare this value with the value from the file (init_existing_file)
-		use_user_kdk_key = 1;
+		use_user_kdk_key = 1; 
 		memcpy(user_kdk_key, kdk_key, sizeof(sgx_aes_gcm_128bit_key_t));
 	}
-
+	
 	// get the clean file name (original name might be clean or with relative path or with absolute path...)
 	char clean_filename[FILENAME_MAX_LEN];
 	if (cleanup_filename(filename, clean_filename) == false)
 		// last_error already set
 		return;
-
+	
 	if (import_key != NULL)
 	{// verify the key is not empty - note from SAFE review
 		sgx_aes_gcm_128bit_key_t empty_aes_key = {0};
@@ -209,7 +210,7 @@ protected_fs_file::protected_fs_file(const char* filename, const char* mode, con
 			last_error = SGX_ERROR_FILE_NOT_SGX_FILE;
 			break;
 		}
-
+		
 		strncpy(file_name, filename, FULLNAME_MAX_LEN - 1);
 		file_name[FULLNAME_MAX_LEN - 1] = '\0';
 		strncpy(recovery_filename, filename, FULLNAME_MAX_LEN - 1); // copy full file name
@@ -227,7 +228,7 @@ protected_fs_file::protected_fs_file(const char* filename, const char* mode, con
 
 			if (init_existing_file(filename, clean_filename, import_key) == false)
 				break;
-
+				
 			if (open_mode.append == 1 && open_mode.update == 0)
 				offset = encrypted_part_plain.size;
 		}
@@ -268,7 +269,7 @@ void protected_fs_file::init_fields(const uint32_t cache_page)
 	root_mht.mht_node_number = 0;
 	root_mht.new_node = true;
 	root_mht.need_writing = false;
-
+	
 	offset = 0;
 	file_addr = NULL;
 	end_of_file = false;
@@ -277,10 +278,11 @@ void protected_fs_file::init_fields(const uint32_t cache_page)
 	read_only = 0;
 	file_status = SGX_FILE_STATUS_NOT_INITIALIZED;
 	last_error = SGX_SUCCESS;
-	real_file_size = -1;
+	real_file_size = -1;	
 	open_mode.raw = 0;
 	use_user_kdk_key = 0;
 	master_key_count = 0;
+	parallel_flush_level = 1;
 
 	file_name[0] = '\0';
 	recovery_filename[0] = '\0';
@@ -355,7 +357,7 @@ bool protected_fs_file::file_recovery(const char* filename)
 	status = u_sgxprotectedfs_file_unmap(&result32, file_addr, real_file_size);
 	if (status != SGX_SUCCESS || result32 != 0)
 	{
-		last_error = (status != SGX_SUCCESS) ? status :
+		last_error = (status != SGX_SUCCESS) ? status : 
 					 (result32 != -1) ? result32 : EINVAL;
 		return false;
 	}
@@ -373,7 +375,7 @@ bool protected_fs_file::file_recovery(const char* filename)
 	status = u_sgxprotectedfs_exclusive_file_map(&file_addr, filename, read_only, &new_file_size, &result32);
 	if (status != SGX_SUCCESS || file_addr == NULL)
 	{
-		last_error = (status != SGX_SUCCESS) ? status :
+		last_error = (status != SGX_SUCCESS) ? status : 
 					 (result32 != 0) ? result32 : EACCES;
 		return false;
 	}
@@ -468,6 +470,7 @@ bool protected_fs_file::init_existing_file(const char* filename, const char* cle
 	}
 	else
 	{
+		// integrity-only: the meta-data is plaintext and only its GMAC is verified
 		status = sgx_rijndael128GCM_decrypt(&cur_key,
 											NULL, 0, NULL,
 											empty_iv, SGX_AESGCM_IV_SIZE,
@@ -507,11 +510,10 @@ bool protected_fs_file::init_existing_file(const char* filename, const char* cle
 		else
 		{
 			status = sgx_rijndael128GCM_decrypt(&encrypted_part_plain.mht_key,
-											    NULL, 0, NULL,
-											    empty_iv, SGX_AESGCM_IV_SIZE, temp_node, NODE_SIZE, &encrypted_part_plain.mht_gmac);
+												NULL, 0, NULL,
+												empty_iv, SGX_AESGCM_IV_SIZE, temp_node, NODE_SIZE, &encrypted_part_plain.mht_gmac);
 			memcpy((uint8_t*)&root_mht.plain, temp_node, NODE_SIZE);
 		}
-
 		if (status != SGX_SUCCESS)
 		{
 			last_error = status;
@@ -549,7 +551,7 @@ bool protected_fs_file::init_new_file(const char* clean_filename)
 protected_fs_file::~protected_fs_file()
 {
 	void* data;
-
+	
 	while ((data = cache.get_last()) != NULL)
 	{
 		if (((file_data_node_t*)data)->type == FILE_DATA_NODE_TYPE) // type is in the same offset in both node types, need to scrub the plaintext
@@ -570,7 +572,7 @@ protected_fs_file::~protected_fs_file()
 	// scrub the last encryption key and the session key
 	memset_s(&cur_key, sizeof(sgx_aes_gcm_128bit_key_t), 0, sizeof(sgx_aes_gcm_128bit_key_t));
 	memset_s(&session_master_key, sizeof(sgx_aes_gcm_128bit_key_t), 0, sizeof(sgx_aes_gcm_128bit_key_t));
-
+	
 	// scrub first 3KB of user data and the gmac_key
 	memset_s(&encrypted_part_plain, sizeof(meta_data_encrypted_t), 0, sizeof(meta_data_encrypted_t));
 
@@ -613,7 +615,7 @@ bool protected_fs_file::pre_close(sgx_key_128bit_t* key, bool import)
 		status = u_sgxprotectedfs_file_unmap(&result32, file_addr, real_file_size);
 		if (status != SGX_SUCCESS || result32 != 0)
 		{
-			last_error = (status != SGX_SUCCESS) ? status :
+			last_error = (status != SGX_SUCCESS) ? status : 
 						 (result32 != -1) ? result32 : SGX_ERROR_FILE_CLOSE_FAILED;
 			retval = false;
 		}
@@ -621,7 +623,7 @@ bool protected_fs_file::pre_close(sgx_key_128bit_t* key, bool import)
 		file_addr = NULL;
 	}
 
-	if (file_status == SGX_FILE_STATUS_OK &&
+	if (file_status == SGX_FILE_STATUS_OK && 
 		last_error == SGX_SUCCESS) // else...maybe something bad happened and the recovery file will be needed
 		erase_recovery_file();
 

@@ -39,7 +39,7 @@
 #include "sgx_error.h"
 #include "sgx_tcrypto.h"
 #include "errno.h"
-
+#include <queue>
 #include <sgx_thread.h>
 #include "sgx_tprotected_fs.h"
 
@@ -78,6 +78,23 @@ typedef union
 	};
 	uint8_t raw;
 } open_mode_t;
+
+
+typedef struct _thread_queue
+{
+	sgx_aes_gcm_128bit_key_t key;
+	void* node;
+} thread_queue_t;
+
+
+typedef struct _thread_input
+{
+	uint32_t error;
+	uint8_t* addr;
+	uint8_t* empty_iv;
+	std::queue<thread_queue_t*>* queue;
+	bool integrity_only;
+} thread_input_t;
 
 
 #define FILE_MHT_NODE_TYPE  1
@@ -131,11 +148,11 @@ private:
 	};
 
 	meta_data_encrypted_t encrypted_part_plain; // encrypted part of meta data node, decrypted
-
+	
 	file_mht_node_t root_mht; // the root of the mht is always needed (for files bigger than 3KB)
 
 	uint8_t* file_addr; // start address of the memory mapped from file
-
+	
 	open_mode_t open_mode;
 	uint8_t read_only;
 	int64_t offset; // current file position (user's view)
@@ -144,11 +161,14 @@ private:
 
 	int64_t real_file_size;
 	bool integrity_only; // If true, no encryption, only MAC. Default: false.
+
 	bool need_writing; // flag
 	uint32_t last_error; // last operation error
 	protected_fs_status_e file_status;
-
+	
 	sgx_thread_mutex_t mutex;
+
+	uint32_t parallel_flush_level;
 
 	uint8_t use_user_kdk_key;
 	sgx_aes_gcm_128bit_key_t user_kdk_key; // recieved from user, used instead of the seal key
@@ -156,7 +176,7 @@ private:
 	sgx_aes_gcm_128bit_key_t cur_key;
 	sgx_aes_gcm_128bit_key_t session_master_key;
 	uint32_t master_key_count;
-
+	
 	char file_name[FULLNAME_MAX_LEN]; // used for u_sgxprotectedfs_file_remap
 	char recovery_filename[RECOVERY_FILE_MAX_LEN]; // might include full path to the file
 
@@ -172,15 +192,15 @@ private:
 	bool file_recovery(const char* filename);
 	bool init_existing_file(const char* filename, const char* clean_filename, const sgx_aes_gcm_128bit_key_t* import_key);
 	bool init_new_file(const char* clean_filename);
-
+	
 	bool generate_secure_blob(sgx_aes_gcm_128bit_key_t* key, const char* label, uint64_t physical_node_number, sgx_aes_gcm_128bit_tag_t* output);
 	bool generate_secure_blob_from_user_kdk(bool restore);
 	bool init_session_master_key();
 	bool derive_random_node_key(uint64_t physical_node_number);
 	bool generate_random_meta_data_key();
 	bool restore_current_meta_data_key(const sgx_aes_gcm_128bit_key_t* import_key);
-
-
+	
+	
 	file_data_node_t* get_data_node();
 	file_data_node_t* read_data_node();
 	file_data_node_t* append_data_node();
@@ -189,6 +209,7 @@ private:
 	file_mht_node_t* append_mht_node(uint64_t mht_node_number);
 	bool write_recovery_file();
 	bool set_update_flag();
+	bool multi_thread_update_data_nodes();
 	bool single_thread_update_data_nodes();
 	bool update_all_data_and_mht_nodes();
 	bool update_meta_data_node();
@@ -203,6 +224,7 @@ public:
 	size_t read(void* ptr, size_t size, size_t count);
 	int64_t tell();
 	int seek(int64_t new_offset, int origin);
+	int32_t set_parallel_flush_level(uint32_t max_threads_number);
 	bool get_eof();
 	uint32_t get_error();
 	void clear_error();

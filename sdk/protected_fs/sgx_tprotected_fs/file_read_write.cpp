@@ -110,7 +110,7 @@ size_t protected_fs_file::write(const void* ptr, size_t size, size_t count)
 			data_to_write += empty_place_left_in_md;
 			data_left_to_write -= empty_place_left_in_md;
 		}
-
+		
 		if (offset > encrypted_part_plain.size)
 			encrypted_part_plain.size = offset; // file grew, update the new file size
 
@@ -126,7 +126,7 @@ size_t protected_fs_file::write(const void* ptr, size_t size, size_t count)
 
 		size_t offset_in_node = (size_t)((offset - MD_USER_DATA_SIZE) % NODE_SIZE);
 		size_t empty_place_left_in_node = NODE_SIZE - offset_in_node;
-
+		
 		if (data_left_to_write <= empty_place_left_in_node)
 		{ // this will be the last write
 			memcpy(&file_data_node->plain.data[offset_in_node], data_to_write, data_left_to_write);
@@ -272,7 +272,7 @@ size_t protected_fs_file::read(void* ptr, size_t size, size_t count)
 
 		size_t offset_in_node = (offset - MD_USER_DATA_SIZE) % NODE_SIZE;
 		size_t data_left_in_node = NODE_SIZE - offset_in_node;
-
+		
 		if (data_left_to_read <= data_left_in_node)
 		{
 			memcpy(out_buffer, &file_data_node->plain.data[offset_in_node], data_left_to_read);
@@ -304,8 +304,8 @@ size_t protected_fs_file::read(void* ptr, size_t size, size_t count)
 }
 
 
-// this is a very 'specific' function, tied to the architecture of the file layout, returning the node numbers according to the offset in the file
-void get_node_numbers(uint64_t offset, uint64_t* mht_node_number, uint64_t* data_node_number,
+// this is a very 'specific' function, tied to the architecture of the file layout, returning the node numbers according to the offset in the file 
+void get_node_numbers(uint64_t offset, uint64_t* mht_node_number, uint64_t* data_node_number, 
 					 uint64_t* physical_mht_node_number, uint64_t* physical_data_node_number)
 {
 	// node 0 - meta data node
@@ -348,7 +348,7 @@ file_data_node_t* protected_fs_file::get_data_node()
 		return NULL;
 	}
 
-	if ((offset - MD_USER_DATA_SIZE) % NODE_SIZE == 0 &&
+	if ((offset - MD_USER_DATA_SIZE) % NODE_SIZE == 0 && 
 		offset == encrypted_part_plain.size)
 	{// new node
 		file_data_node = append_data_node();
@@ -374,7 +374,7 @@ file_data_node_t* protected_fs_file::get_data_node()
 	{
 		void* data = cache.get_last();
 		assert(data != NULL);
-		// for production -
+		// for production - 
 		if (data == NULL)
 		{
 			last_error = SGX_ERROR_UNEXPECTED;
@@ -409,7 +409,7 @@ file_data_node_t* protected_fs_file::get_data_node()
 			}
 		}
 	}
-
+	
 	return file_data_node;
 }
 
@@ -460,7 +460,7 @@ file_data_node_t* protected_fs_file::read_data_node()
 	file_data_node_t* file_data_node = (file_data_node_t*)cache.get(physical_node_number);
 	if (file_data_node != NULL)
 		return file_data_node;
-
+	
 	// need to read the data node from the disk
 
 	file_mht_node = get_mht_node();
@@ -480,7 +480,7 @@ file_data_node_t* protected_fs_file::read_data_node()
 	file_data_node->data_node_number = data_node_number;
 	file_data_node->physical_node_number = physical_node_number;
 	file_data_node->parent = file_mht_node;
-
+		
 	if (file_addr == NULL || real_file_size < 0 || ((uint64_t)real_file_size < NODE_SIZE * (file_data_node->physical_node_number + 1)))
 	{
 		delete file_data_node;
@@ -499,7 +499,8 @@ file_data_node_t* protected_fs_file::read_data_node()
 		// this function decrypt the data _and_ checks the integrity of the data against the gmac
 		status = sgx_rijndael128GCM_decrypt(&gcm_crypto_data->key, temp_node, NODE_SIZE, file_data_node->plain.data, empty_iv, SGX_AESGCM_IV_SIZE, NULL, 0, &gcm_crypto_data->gmac);
 	}
-	else {
+	else
+	{
 		status = sgx_rijndael128GCM_decrypt(&gcm_crypto_data->key, NULL, 0, NULL, empty_iv, SGX_AESGCM_IV_SIZE, temp_node, NODE_SIZE, &gcm_crypto_data->gmac);
 		memcpy(file_data_node->plain.data, temp_node, NODE_SIZE);
 	}
@@ -513,7 +514,7 @@ file_data_node_t* protected_fs_file::read_data_node()
 		}
 		return NULL;
 	}
-
+		
 	if (cache.add(file_data_node->physical_node_number, file_data_node) == false)
 	{
 		memset_s(&file_data_node->plain, sizeof(data_node_t), 0, sizeof(data_node_t)); // scrub the plaintext data
@@ -544,7 +545,7 @@ file_mht_node_t* protected_fs_file::get_mht_node()
 		return &root_mht;
 
 	// file is constructed from 128*4KB = 512KB per MHT node.
-	if ((offset - MD_USER_DATA_SIZE) % (ATTACHED_DATA_NODES_COUNT * NODE_SIZE) == 0 &&
+	if ((offset - MD_USER_DATA_SIZE) % (ATTACHED_DATA_NODES_COUNT * NODE_SIZE) == 0 && 
 		 offset == encrypted_part_plain.size)
 	{
 		file_mht_node = append_mht_node(mht_node_number);
@@ -590,7 +591,7 @@ file_mht_node_t* protected_fs_file::append_mht_node(uint64_t mht_node_number)
 		last_error = ENOMEM;
 		return NULL;
 	}
-
+	
 	return new_file_mht_node;
 }
 
@@ -634,7 +635,7 @@ file_mht_node_t* protected_fs_file::read_mht_node(uint64_t mht_node_number)
 		return NULL;
 	}
 	uint8_t* file_mht_node_addr = file_addr + NODE_SIZE * file_mht_node->physical_node_number;
-
+	
 	gcm_crypto_data_t* gcm_crypto_data = &file_mht_node->parent->plain.mht_nodes_crypto[(file_mht_node->mht_node_number - 1) % CHILD_MHT_NODES_COUNT];
 
 	uint8_t temp_node[NODE_SIZE] = { 0 };
@@ -645,7 +646,8 @@ file_mht_node_t* protected_fs_file::read_mht_node(uint64_t mht_node_number)
 		// this function decrypt the data _and_ checks the integrity of the data against the gmac
 		status = sgx_rijndael128GCM_decrypt(&gcm_crypto_data->key, temp_node, NODE_SIZE, (uint8_t*)&file_mht_node->plain, empty_iv, SGX_AESGCM_IV_SIZE, NULL, 0, &gcm_crypto_data->gmac);
 	}
-	else {
+	else
+	{
 		status = sgx_rijndael128GCM_decrypt(&gcm_crypto_data->key, NULL, 0, NULL, empty_iv, SGX_AESGCM_IV_SIZE, temp_node, NODE_SIZE, &gcm_crypto_data->gmac);
 		memcpy((uint8_t*)&file_mht_node->plain, temp_node, NODE_SIZE);
 	}
