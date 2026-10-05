@@ -5,6 +5,7 @@
 	path = external/openmp/openmp_code
 	url = https://github.com/llvm-mirror/openmp.git
 	branch = svn-tags/RELEASE_801
+	shallow = true
 [submodule "dnnl"]
 	path = external/dnnl/dnnl
 	url = https://github.com/oneapi-src/oneDNN.git
@@ -17,6 +18,7 @@
 	path = external/protobuf/protobuf_code
 	url = https://github.com/protocolbuffers/protobuf.git
 	branch = 3.20.x
+	shallow = true
 [submodule "external/sgx-emm/emm_src"]
 	path = external/sgx-emm/emm_src
 	url = https://github.com/intel/sgx-emm.git
