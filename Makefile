@@ -1,32 +1,7 @@
 #
-# Copyright (C) 2011-2025 Intel Corporation. All rights reserved.
+# Copyright(c) 2011-2026 Intel Corporation
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# SPDX-License-Identifier: BSD-3-Clause
 #
 
 include buildenv.mk
@@ -51,24 +26,31 @@ preparation:
 # As SDK build needs to clone and patch openmp, we cannot support the mode that download the source from github as zip.
 # Only enable the download from git
 # Occlum: fetch only the commits that are pinned (--depth 1) and only the submodules that the SDK
-# needs. Not the nested ones of libcbor, protobuf (except abseil) and DCAP, i.e., not PCCS, WAMR and
-# googletest of DCAP: that is 11 instead of 17 clones and a fraction of the history from GitHub, which
+# needs. Not the nested ones of libcbor and DCAP (only its QVL, jwt-cpp and WAMR), i.e., not PCCS and
+# googletest of DCAP: that is 12 instead of 15 clones and a fraction of the history from GitHub, which
 # refuses anonymous clients after too many requests ("could not read Username").
 	git submodule update --init --depth 1
-	git -C external/dcap_source submodule update --init --depth 1 QuoteVerification/QVL external/jwt-cpp
+	git -C external/dcap_source submodule update --init --depth 1 QuoteVerification/QVL external/jwt-cpp external/wasm-micro-runtime
 	cd external/dcap_source/external/jwt-cpp && git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch >/dev/null 2>&1 || \
 	git apply ../0001-Add-a-macro-to-disable-time-support-in-jwt-for-SGX.patch -R --check
+	cd external/dcap_source/external/wasm-micro-runtime && git apply ../0001-wasm-micro-runtime.patch >/dev/null 2>&1 || \
+	git apply ../0001-wasm-micro-runtime.patch -R --check
 	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
 	cd external/openmp/openmp_code && git apply ../0001-Enable-OpenMP-in-SGX.patch >/dev/null 2>&1 ||  git apply ../0001-Enable-OpenMP-in-SGX.patch --check -R
-	cd external/protobuf/protobuf_code && \
+
+	# TODO refactor to remove duplication with the ./external/protobuf/Makefile.
+	# This Makefile should call ./external/protobuf/Makefile targets instead.
+	# If you are adding a new patch over this one, write your patch's name to .sgx_patched
+	@if ! grep -q "sgx_protobuf" external/protobuf/protobuf_code/.sgx_patched 2>/dev/null; then \
+		cd external/protobuf/protobuf_code && \
 		git apply ../sgx_protobuf.patch >/dev/null 2>&1 || git apply ../sgx_protobuf.patch --check -R && \
-		git apply ../0001-bumped-protobuf-to-1.33.0.patch >/dev/null 2>&1 || git apply ../0001-bumped-protobuf-to-1.33.0.patch --check -R && \
-		git submodule update --init --depth 1 third_party/abseil-cpp && \
-		cd third_party/abseil-cpp && \
-		git reset --hard && \
-		git apply ../../../sgx_abseil.patch >/dev/null 2>&1 || git apply ../../../sgx_abseil.patch --check -R && \
-		git apply ../../../0001-fix-to-make-SGX-Linux-build-on-GCC14.patch >/dev/null 2>&1 || git apply ../../../0001-fix-to-make-SGX-Linux-build-on-GCC14.patch --check -R && \
-		git apply ../../../0001-abseil-fix-missing-abort.patch >/dev/null 2>&1 || git apply ../../../0001-abseil-fix-missing-abort.patch --check -R
+		git submodule update --init --recursive; \
+	fi
+	# If you are adding a new patch over this one, write your patch's name to .sgx_patched
+	@if ! grep -q "sgx_abseil" external/protobuf/abseil-cpp/.sgx_patched 2>/dev/null; then \
+		cd external/protobuf/abseil-cpp && \
+		git apply ../sgx_abseil.patch >/dev/null 2>&1 || git apply ../sgx_abseil.patch --check -R; \
+	fi
 	./external/sgx-emm/create_symlink.sh
 	cd external/cbor && cp -r libcbor sgx_libcbor
 	cd external/cbor/libcbor && git apply ../raw_cbor.patch >/dev/null 2>&1 || git apply ../raw_cbor.patch --check -R
@@ -84,8 +66,6 @@ psw:
 
 sdk_no_mitigation:
 	$(MAKE) -C sdk/ USE_OPT_LIBS=$(USE_OPT_LIBS)
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl clean
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl
 
 sdk:
 	$(MAKE) -C sdk/ clean
@@ -94,12 +74,6 @@ sdk:
 	$(MAKE) -C sdk/ MODE=$(MODE) MITIGATION-CVE-2020-0551=CF
 	$(MAKE) -C sdk/ clean
 	$(MAKE) -C sdk/ MODE=$(MODE)
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl MITIGATION-CVE-2020-0551=LOAD clean
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl MITIGATION-CVE-2020-0551=LOAD
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl MITIGATION-CVE-2020-0551=CF clean
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl MITIGATION-CVE-2020-0551=CF
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl clean
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl
 
 tdx:
 	$(MAKE) -C external/dcap_source/QuoteGeneration pce_logic
@@ -108,14 +82,18 @@ tdx:
 	$(MAKE) -C external/dcap_source/QuoteGeneration tdx_attest
 
 servtd_attest:
+	@test -L common/inc/sgx_mm.h && test -d external/dcap_source/QuoteVerification/sgxssl \
+		&& test -f external/libcxxrt/libcxxrt_code/src/sgx_disable_print.h || \
+		{ echo "Error: Please run 'make servtd_attest_preparation' first"; exit 1; }
 	$(MAKE) -C sdk/ servtd_attest SERVTD_ATTEST=1
 	$(MAKE) -C external/dcap_source/QuoteGeneration servtd_attest
 
 servtd_attest_preparation:
 # Only enable the download from git
-	git submodule update --init --recursive external/dcap_source external/sgx-emm/emm_src
+	git submodule update --init --recursive external/dcap_source external/sgx-emm/emm_src external/libcxxrt/libcxxrt_code
 	./external/sgx-emm/create_symlink.sh
 	./external/dcap_source/QuoteVerification/prepare_sgxssl.sh nobuild
+	cd external/libcxxrt/libcxxrt_code && (git apply ../sgx_libcxxrt.patch >/dev/null 2>&1 || git apply ../sgx_libcxxrt.patch --check -R)
 
 ipp:
 	$(MAKE) -C external/ippcp_internal/ clean
@@ -515,11 +493,6 @@ clean:
 	./linux/installer/rpm/sdk/clean.sh
 	./linux/installer/common/local_repo_builder/local_repo_builder.sh rpm clean
 	$(MAKE) -C external/ippcp_internal/ clean
-ifeq ("$(shell test -f external/dcap_source/QuoteVerification/dcap_tvl/Makefile && echo TVL Makefile exists)", "TVL Makefile exists")
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl MITIGATION-CVE-2020-0551=LOAD clean
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl MITIGATION-CVE-2020-0551=CF clean
-	$(MAKE) -C external/dcap_source/QuoteVerification/dcap_tvl clean
-endif
 ifeq ("$(shell test -f external/dcap_source/QuoteVerification/Makefile && echo Makefile exists)", "Makefile exists")
 	@$(MAKE) -C external/dcap_source/QuoteVerification  clean
 	@$(MAKE) -C external/dcap_source/QuoteGeneration    clean
@@ -570,4 +543,4 @@ distclean:
 	$(RM) -rf external/dcap_source/QuoteGeneration/'Intel redistributable binary.txt'
 	$(RM) -rf external/dcap_source/QuoteVerification/sgxssl/
 	git submodule deinit  --all -f
-	$(RM) -rf dcap-trunk external/dcap_source external/openmp/openmp_code external/protobuf/protobuf_code
+	$(RM) -rf dcap-trunk external/dcap_source external/openmp/openmp_code external/protobuf/protobuf_code external/protobuf/abseil-cpp external/cbor/sgx_libcbor external/cbor/libcbor
