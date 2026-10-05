@@ -39,7 +39,9 @@
 #include "sgx_error.h"
 #include "sgx_tcrypto.h"
 #include "errno.h"
+#ifdef SGX_PFS_PARALLEL_FLUSH
 #include <queue>
+#endif
 #include <sgx_thread.h>
 #include "sgx_tprotected_fs.h"
 
@@ -80,6 +82,7 @@ typedef union
 } open_mode_t;
 
 
+#ifdef SGX_PFS_PARALLEL_FLUSH
 typedef struct _thread_queue
 {
 	sgx_aes_gcm_128bit_key_t key;
@@ -95,6 +98,7 @@ typedef struct _thread_input
 	std::queue<thread_queue_t*>* queue;
 	bool integrity_only;
 } thread_input_t;
+#endif // SGX_PFS_PARALLEL_FLUSH
 
 
 #define FILE_MHT_NODE_TYPE  1
@@ -209,7 +213,9 @@ private:
 	file_mht_node_t* append_mht_node(uint64_t mht_node_number);
 	bool write_recovery_file();
 	bool set_update_flag();
+#ifdef SGX_PFS_PARALLEL_FLUSH
 	bool multi_thread_update_data_nodes();
+#endif
 	bool single_thread_update_data_nodes();
 	bool update_all_data_and_mht_nodes();
 	bool update_meta_data_node();

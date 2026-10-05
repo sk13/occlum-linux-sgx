@@ -207,7 +207,8 @@ extern "C" __attribute__((regparm(1))) void continue_execution(sgx_exception_inf
 extern "C" void restore_xregs(uint8_t *buf);
 
 #ifndef SE_SIM
-extern "C" __attribute__((regparm(1))) void second_phase(sgx_exception_info_t *info, 
+// info is an sgx_exception_info_t or, for Occlum's interrupts, an sgx_interrupt_info_t
+extern "C" __attribute__((regparm(1))) void second_phase(void *info,
     void *new_sp, void *second_phase_handler_addr);
 
 extern "C" void constant_time_apply_sgxstep_mitigation_and_continue_execution(sgx_exception_info_t *info,
@@ -506,6 +507,7 @@ extern "C" sgx_status_t trts_handle_exception(void *tcs, outside_exitinfo_t *u_o
     uintptr_t pkru_base = 0;
     uint32_t *pkru_ptr = NULL;
     size_t size = 0;
+    uint8_t *ssa_xsave = NULL;
     bool is_exception_handled = false;
     bool standard_exception = true;
 

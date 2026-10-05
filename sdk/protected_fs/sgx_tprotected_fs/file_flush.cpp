@@ -29,8 +29,10 @@
  *
  */
 
+#ifdef SGX_PFS_PARALLEL_FLUSH
 #include <vector>
 #include <pthread.h>
+#endif
 #include "sgx_tprotected_fs.h"
 #include "sgx_tprotected_fs_t.h"
 #include "protected_fs_file.h"
@@ -217,6 +219,7 @@ bool mht_order(const file_mht_node_t* first, const file_mht_node_t* second)
 }
 
 
+#ifdef SGX_PFS_PARALLEL_FLUSH
 // 1. encrypt the changed data
 // 2. set the IV+GMAC in the parent MHT
 // [3. set the need_writing flag for all the parents]
@@ -367,6 +370,7 @@ bool protected_fs_file::multi_thread_update_data_nodes()
 
 	return true;
 }
+#endif // SGX_PFS_PARALLEL_FLUSH
 
 
 bool protected_fs_file::single_thread_update_data_nodes()
@@ -458,14 +462,16 @@ bool protected_fs_file::update_all_data_and_mht_nodes()
 		real_file_size = NODE_SIZE * (max_node_number + 1);
 	}
 
-	if (parallel_flush_level <= 1)
+#ifdef SGX_PFS_PARALLEL_FLUSH
+	if (parallel_flush_level > 1)
 	{
-		if (single_thread_update_data_nodes() == false)
+		if (multi_thread_update_data_nodes() == false)
 			return false;
 	}
 	else
+#endif
 	{
-		if (multi_thread_update_data_nodes() == false)
+		if (single_thread_update_data_nodes() == false)
 			return false;
 	}
 
@@ -598,6 +604,12 @@ int32_t protected_fs_file::set_parallel_flush_level(uint32_t max_threads_number)
 {
 	if (max_threads_number == 0)
 		return 1;
+
+#ifndef SGX_PFS_PARALLEL_FLUSH
+	// Occlum: no threads can be created inside the enclave, so the flush is always single-threaded
+	if (max_threads_number > 1)
+		return 1;
+#endif
 
 	parallel_flush_level = max_threads_number;
 	return 0;
