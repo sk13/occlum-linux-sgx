@@ -60,6 +60,11 @@ int get_first_executable_segment_info(const void *enclave_base,
                                 uintptr_t *segment_start_addr,
                                 size_t *segment_size);
 
+int is_shared_object(void *dso_base);
+
+int relocate_fips_module(void* dso_base);
+
+uint64_t get_aligned_enclave_segments_size(const void *enclave_base);
 #ifdef __cplusplus
 }
 #endif

@@ -99,3 +99,12 @@ int sgx_get_enclave_mode()
     printf("Please use the correct uRTS library from PSW package.\n");
     return 0;
 }
+
+#ifdef VALIDATION_HOOKS
+/* VALIDATION HOOK */
+int sgx_get_enclave_file_handle()
+{
+    printf("Please use the correct uRTS library from PSW package.\n");
+    return SGX_ERROR_FEATURE_NOT_SUPPORTED;
+}
+#endif

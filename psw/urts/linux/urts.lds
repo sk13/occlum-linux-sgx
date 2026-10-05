@@ -22,6 +22,7 @@
         sgx_get_metadata;
         sgx_trace_logger_callback;
         sgx_trace_loglevel;
+	sgx_get_enclave_file_handle;
     local:
         *;
 };
