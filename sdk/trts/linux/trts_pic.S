@@ -731,3 +731,4 @@ END_FUNC
 DECLARE_LOCAL_FUNC writefsbase
     wrfsbase  %xdi
     ret
+END_FUNC
